@@ -60,7 +60,7 @@ Nanopore tools:
 | **mCaller**  | 0.0.5.8  |Pypi|
 
 
-R requried softwares are listed in [R_Sessioninfo.txt](figures_code/R_Sessioninfo.txt)
+R requried softwares are listed in [R_Sessioninfo.txt](main_code/R_Sessioninfo.txt)
 
 
 ### main_code
@@ -108,4 +108,4 @@ All figures'code can be found in this git version. For example:
 
 #### Showcase of the current
 After obtaining many modification sites, 
-we used [nanoCEM](https://github.com/lrslab/nanoCEM) to showcase the analysis focusing on current and alignment feature, the commands are saved in [nanocem.sh](figures_code/SF5/nanocem.sh)
+we used [nanoCEM](https://github.com/lrslab/nanoCEM) to showcase the analysis focusing on current and alignment feature.
