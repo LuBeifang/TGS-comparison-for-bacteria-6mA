@@ -1,6 +1,8 @@
 # TGS-comparison-for-bacteria-6mA
 
-This GitHub repository contains all the custom scripts and shell commands used in our paper, 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15165726.svg)](https://doi.org/10.5281/zenodo.15165726)
+
+This GitHub repository contains all the custom scripts and shell commands used in our paper, which we also uploaded to the [zenodo](https://doi.org/10.5281/zenodo.151657260).
 
 **Comprehensive Comparison of Third-Generation Sequencing Tools for Bacterial 6mA Profiling**.
 
