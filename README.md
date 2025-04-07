@@ -57,36 +57,6 @@ Nanopore tools:
 
 R requried softwares are listed in [R_Sessioninfo.txt](figures_code/R_Sessioninfo.txt)
 
-### Structure
-
-```mermaid
-graph TD
-	A(TGS-comparison-for-bacteria-6mA)--> B(main_code)
-	A(TGS-comparison-for-bacteria-6mA) --> C(figures_code)
-    B(main_code) --> d(Nanopore_tools_code)
-    B(main_code) --> y(SMRT)
-    d(Nanopore_tools_code) --> e(Tombo)
-    d(Nanopore_tools_code) --> f(mcaller)
-    d(Nanopore_tools_code) --> g(mcaller)
-    d(Nanopore_tools_code) --> h(Dorado)
-    d(Nanopore_tools_code) --> i(nanodisco)
-    d(Nanopore_tools_code) --> j(Harmmerhead)
-    e(Tombo)  --> k(model_comp)
-    e(Tombo)  --> l(level_comp)
-    e(Tombo)  --> m(de novo)
-	B(main_code) --> n(Rmd)
-	n(Rmd) --> o(Psph)
-	n(Rmd) --> p(Pst)
-	n(Rmd) --> q(Optimization)
-	n(Rmd) --> r(downsample)
-    C(figures_code)  --> s(fig1_QC)
-    C(figures_code)  --> t(fig2_motif)
-    C(figures_code)  --> u(fig3_sinlge-base)
-    C(figures_code)  --> v(fig4_outliers)
-    C(figures_code)  --> w(fig5_optimization&downSample)
-    C(figures_code)  --> x(fig6_Validation)
-
-```
 
 ### main_code
 #### Nanopore_tools_code
@@ -104,14 +74,13 @@ Additionally, for Tombo, we developed [read_tombo.py](main_code/Nanopore_tools_c
       --ref REF             reference path                                   
       --output OUTPUT       output path   
 
-#### R markdown files
-We show the main code of our work, entitled [psph_wt.Rmd](main_code/psph_wt.Rmd), [psph_mu.Rmd](main_code/psph_mu.Rmd), [psph_lost.Rmd](main_code/psph_lost.Rmd), [pst.Rmd](main_code/pst.Rmd), [psph_optimization.Rmd](main_code/psph_optimization.Rmd), and [psph_dorado_downsample.Rmd](main_code/psph_dorado_downsample.Rmd).
+#### Benchmark
+We show the main code of our work, structured in R markdown files.
 In each Rmd, we recommend the reading following the **Outline**.
 For example in [psph_wt.Rmd](main_code/psph_wt.Rmd). 
-1. We need to load the output files from all seven tools and trim them into a unified format with assigned values (detailed in the Methods section).
-2. The codes of assigned values distribution plot are provided to visulaize the outputs (SF. 1c).
-3. Meme-Streme for motif discovery. Plot codes are provided (Fig. 6, SF. 2-4).
-4. _Psph_ motifs' features were characterized (Fig. 2b).
+1. Data loading and normalization.
+2. Motif discovery.
+3. Sites comparsion which focused on the single-base/5-mer resolution
 5. **Sites comparison** is one of the core sections of our study, including "5-mer shift", "compare tools with A sites", and "compare tools with ATCG sites".
    Codes are provided and detailed description can be found in Methods section.
    Codes for plotting F1 score change curve, PRC, and ROC curve are provided.
@@ -119,9 +88,18 @@ For example in [psph_wt.Rmd](main_code/psph_wt.Rmd).
 7. Outliers analysis.
 8. Detailed comparison of Nanopore and SMRT results.
 
+The expecting running time for each tool's comparison should be within 60 mins.
 
-### figures_code
-We present the additional codes for the figures plot.
+
+#### figures_code
+We present the codes for the figures plot in each Rmd file.
+
+All figures'code can be found in this git version. For example:
+
+1. Codes are provided and detailed description can be found in Methods section.
+
+2. Codes for plotting F1 score change curve, PRC, and ROC curve are provided.
+
 
 #### Showcase of the current
 After obtaining many modification sites, 
