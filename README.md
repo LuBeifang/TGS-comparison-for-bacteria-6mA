@@ -1,15 +1,19 @@
 # TGS-comparison-for-bacteria-6mA
 
-This GitHub repository contains all the custom scripts and shell commands used in our paper, **Comprehensive Comparison of Third-Generation Sequencing Tools for Bacteria 6mA Profiling**.
+This GitHub repository contains all the custom scripts and shell commands used in our paper, 
+
+**Comprehensive Comparison of Third-Generation Sequencing Tools for Bacterial 6mA Profiling**.
 
 ## Graphic abstract
 ![abstract](readme_fig/Workflow.png)
 ## Data available
-Oxford Nanopore's basecall model is updated frequently, we recommend using the latest basecaller model for re-calling. All raw signal files are uploaded to the NCBI (BIOPROJECT:[PRJNA1119015](https://ncbi.nlm.nih.gov/bioproject/?term=PRJNA1119015)).
+Oxford Nanopore's basecall model is updated frequently, we recommend using the latest basecaller model for re-calling. 
 
-For now, the raw sequencing files are suppressed, details can be found [here](http://ftp-trace.ncbi.nlm.nih.gov/sra/review/SRP511146_20240709_121051_f2fc6039cf8effd72bb50da4390115f6). If you need raw files now, please contact xindeng@cityu.edu.hk or beifanglu2-c@my.cityu.edu.hk.
+All raw signal files are uploaded to NCBI (BIOPROJECT:[PRJNA1119015](https://ncbi.nlm.nih.gov/bioproject/?term=PRJNA1119015)).
 
-We are pleased to help.
+All processed files are uploaded to [Zenodo](10.5281/zenodo.15165726).
+
+If you have any further requests, please contact xindeng@cityu.edu.hk or beifanglu2-c@my.cityu.edu.hk. We are pleased to help!
 
 ## Code available
 
@@ -60,6 +64,7 @@ graph TD
 	A(TGS-comparison-for-bacteria-6mA)--> B(main_code)
 	A(TGS-comparison-for-bacteria-6mA) --> C(figures_code)
     B(main_code) --> d(Nanopore_tools_code)
+    B(main_code) --> y(SMRT)
     d(Nanopore_tools_code) --> e(Tombo)
     d(Nanopore_tools_code) --> f(mcaller)
     d(Nanopore_tools_code) --> g(mcaller)
@@ -76,10 +81,10 @@ graph TD
 	n(Rmd) --> r(downsample)
     C(figures_code)  --> s(fig1_QC)
     C(figures_code)  --> t(fig2_motif)
-    C(figures_code)  --> u(fig3_site)
+    C(figures_code)  --> u(fig3_sinlge-base)
     C(figures_code)  --> v(fig4_outliers)
-    C(figures_code)  --> w(fig5_optimize)
-    C(figures_code)  --> x(fig6_application)
+    C(figures_code)  --> w(fig5_optimization&downSample)
+    C(figures_code)  --> x(fig6_Validation)
 
 ```
 
