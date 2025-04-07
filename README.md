@@ -16,6 +16,8 @@ All raw signal files are uploaded to NCBI (BIOPROJECT:[PRJNA1119015](https://ncb
 
 All processed files are uploaded to [Zenodo](10.5281/zenodo.15165726).
 
+Evaluation results can be found in the Source Data File.
+
 If you have any further requests, please contact xindeng@cityu.edu.hk or beifanglu2-c@my.cityu.edu.hk. We are pleased to help!
 
 ## Code available
@@ -64,7 +66,7 @@ R requried softwares are listed in [R_Sessioninfo.txt](figures_code/R_Sessioninf
 ### main_code
 #### Nanopore_tools_code
 Here are all the shell commands used to obtain the bacterial 6mA predictions using all seven Nanopore tools.
-For each sample, we run the commands in [QC.sh](main_code/QC.sh). The basecalled **fastq** file and the alignment result (**bam** file) with the reference can be collected,
+For each sample, we run the commands in [QC.sh](main_code/Benchmark_code/QC.sh). The basecalled **fastq** file and the alignment result (**bam** file) with the reference can be collected,
 while giraffe will help to calculate the estimated features such as Q score and read length.
 
 Additionally, for Tombo, we developed [read_tombo.py](main_code/Nanopore_tools_code/read_tombo.py) to merge the result from `tombo text_output` and output a **bed** file.
@@ -80,7 +82,7 @@ Additionally, for Tombo, we developed [read_tombo.py](main_code/Nanopore_tools_c
 #### Benchmark
 We show the main code of our work, structured in R markdown files.
 In each Rmd, we recommend the reading following the **Outline**.
-For example in [psph_wt.Rmd](main_code/psph_wt.Rmd). 
+For example in [Psph_WT_evaluation.Rmd](main_code/Benchmark_code/Psph_WT_evaluation.Rmd). 
 1. Data loading and normalization.
 2. Motif discovery.
 3. Sites comparsion which focused on the single-base/5-mer resolution
