@@ -3,7 +3,7 @@
 This GitHub repository contains all the custom scripts and shell commands used in our paper, **Comprehensive Comparison of Third-Generation Sequencing Tools for Bacteria 6mA Profiling**.
 
 ## Graphic abstract
-![abstract](readme_fig/workflow.png)
+![abstract](readme_fig/workflow.pdf)
 ## Data available
 Oxford Nanopore's basecall model is updated frequently, we recommend using the latest basecaller model for re-calling. All raw signal files are uploaded to the NCBI (BIOPROJECT:[PRJNA1119015](https://ncbi.nlm.nih.gov/bioproject/?term=PRJNA1119015)).
 
