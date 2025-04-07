@@ -1,0 +1,461 @@
+# k12 analysis
+
+We have the TGS sequencing data of k12_SMRT_WT, k12_∆dam_SMRT, k12_WT_R10, k12_WGA_R10, k12_WT_R9, and k12_WGA_R9 sequencing results.
+And we have the NGS data of DR-seq and DM-seq.
+
+## Load DATA
+### A sites and motifs
+```{R}
+library(tidyr)
+library(data.table)
+library(dplyr)
+library(ChIPpeakAnno)
+library(ggVennDiagram)
+```
+
+
+###  NGS data
+```{R}
+# k12_DR
+k12_DR_1 = fread("/Users/lubeifang/Desktop/Benchmark/DATA/validate/k12/k12_dr-1.csv", header = T)
+k12_DR_2 = fread("/Users/lubeifang/Desktop/Benchmark/DATA/validate/k12/k12_dr-2.csv", header = T)
+k12_DR_3 = fread("/Users/lubeifang/Desktop/Benchmark/DATA/validate/k12/k12_dr-3.csv", header = T)
+temp5 <- inner_join(k12_DR_1,k12_DR_2,by=c("position","strand"))
+k12_DR <- inner_join(temp5,k12_DR_3,by=c("position","strand"))
+```
+
+```{r}
+k12_DR_bed <- data.frame(Chromosome = "chromosome",
+                        start = k12_DR$position,
+                        end = k12_DR$position +1,
+                        strand = k12_DR$strand,
+                        index=paste0(k12_DR$position +1,k12_DR$strand))
+
+k12_Dorado_temp <- data.frame(Chromosome = "chromosome",
+                        start = k12_dorado[k12_dorado$OriginalValue >= 90.79,]$Position-1 ,
+                        end = k12_dorado[k12_dorado$OriginalValue >= 90.79,]$Position ,
+                        strand = k12_dorado[k12_dorado$OriginalValue >= 90.79,]$Strand,
+                        index=paste0(k12_dorado[k12_dorado$OriginalValue >= 90.79,]$Position,
+                                     k12_dorado[k12_dorado$OriginalValue >= 90.79,]$Strand))
+
+k12_Dorado_optimized <- anti_join(k12_dorado[k12_dorado$OriginalValue >= 90.79,],
+                                  k12_dorado_WGA[k12_dorado_WGA$OriginalValue >= 90.79,],
+                                  by=c("Chromosome","Position","Strand"))
+k12_Dorado_optimized_temp <- data.frame(Chromosome = "chromosome",
+                                        start = k12_Dorado_optimized$Position-1 ,
+                                        end = k12_Dorado_optimized$Position ,
+                                        strand = k12_Dorado_optimized$Strand,
+                                        index=paste0(k12_Dorado_optimized$Position,
+                                                     k12_Dorado_optimized$Strand))
+
+k12_motif_temp <- data.frame(Chromosome = "chromosome",
+                              start = k12_motif$Position-1 ,
+                              end = k12_motif$Position ,
+                              strand = k12_motif$Strand,
+                             index=paste0(k12_motif$Position,k12_motif$Strand))
+
+k12_SMRT_temp <- data.frame(Chromosome = "chromosome",
+                        start = k12_SMRT[k12_SMRT$OriginalValue >= 53.00	,]$Position-1 ,
+                        end = k12_SMRT[k12_SMRT$OriginalValue >= 53.00	,]$Position ,
+                        strand = k12_SMRT[k12_SMRT$OriginalValue >= 53.00	,]$Strand)
+k12_SMRT_damKO_temp <- data.frame(Chromosome = "chromosome",
+                            start = k12_SMRT_damKO[k12_SMRT_damKO$OriginalValue >= 53.00	,]$Position-1 ,
+                            end = k12_SMRT_damKO[k12_SMRT_damKO$OriginalValue >= 53.00	,]$Position ,
+                            strand = k12_SMRT_damKO[k12_SMRT_damKO$OriginalValue >= 53.00	,]$Strand)
+
+k12_dorado_WGA_temp <- data.frame(Chromosome = "chromosome",
+                              start = k12_dorado_WGA[k12_dorado_WGA$OriginalValue >= 90.79,]$Position-1 ,
+                              end = k12_dorado_WGA[k12_dorado_WGA$OriginalValue >= 90.79,]$Position ,
+                              strand = k12_dorado_WGA[k12_dorado_WGA$OriginalValue >= 90.79,]$Strand,
+                              index=paste0(k12_dorado_WGA[k12_dorado_WGA$OriginalValue >= 90.79,]$Position,
+                                           k12_dorado_WGA[k12_dorado_WGA$OriginalValue >= 90.79,]$Strand))
+```
+
+
+```{r}
+x <- list(SMRT = paste0(k12_SMRT_temp$end,k12_SMRT_temp$strand),
+          DRseq = paste0(k12_DR_bed$end,k12_DR_bed$strand),
+          TrueMotif = paste0(k12_motif$Position,k12_motif$Strand),
+          Dorado = paste0(k12_Dorado_temp$end,k12_Dorado_temp$strand))
+pdf("/Users/lubeifang/Desktop/Benchmark/Figure/validate/venn1.pdf",width=5,height = 5)
+ggVennDiagram(x, label_alpha = 0, edge_size = 0.3, label = "count") +
+  scale_fill_gradient(low="white",high = "#C6AEBA") +
+  theme(legend.position = "none")
+dev.off()
+
+x <- list(DRseq = paste0(k12_DR_bed$end,k12_DR_bed$strand),
+          TrueMotif = paste0(k12_motif$Position,k12_motif$Strand),
+          Dorado = paste0(k12_Dorado_temp$end,k12_Dorado_temp$strand),
+          Dorado_optimized = paste0(k12_Dorado_optimized_temp$end,k12_Dorado_optimized_temp$strand))
+pdf("/Users/lubeifang/Desktop/Benchmark/Figure/validate/venn2.pdf",width=5,height = 5)
+ggVennDiagram(x, label_alpha = 0, edge_size = 0.3, label = "count") +
+  scale_fill_gradient(low="white",high = "#C6AEBA") +
+  theme(legend.position = "none")
+dev.off()
+
+x <- list(SMRT = paste0(k12_SMRT_temp$end,k12_SMRT_temp$strand),
+          SMRT_damKO = paste0(k12_SMRT_damKO_temp$end,k12_SMRT_damKO_temp$Strand),
+          TrueMotif = paste0(k12_motif$Position,k12_motif$Strand))
+pdf("/Users/lubeifang/Desktop/Benchmark/Figure/validate/venn3.pdf",width=5,height = 5)
+ggVennDiagram(x, label_alpha = 0, edge_size = 0.3, label = "count") +
+  scale_fill_gradient(low="white",high = "#C6AEBA") +
+  theme(legend.position = "none")
+dev.off()
+
+motif4 <- rbind(k12_motif2,k12_motif3)
+x <- list(SMRT = paste0(k12_SMRT_temp$end,k12_SMRT_temp$strand),
+          SMRT_damKO = paste0(k12_SMRT_damKO_temp$end,k12_SMRT_damKO_temp$Strand),
+          TrueMotifGATC = paste0(k12_motif1$V3,k12_motif1$V6),
+          TrueMotiftype1 = paste0(motif4$V3,motif4$V6))
+pdf("/Users/lubeifang/Desktop/Benchmark/Figure/validate/venn3.pdf",width=5,height = 5)
+ggVennDiagram(x, label_alpha = 0, edge_size = 0.3, label = "count") +
+  scale_fill_gradient(low="white",high = "#C6AEBA") +
+  theme(legend.position = "none")
+dev.off()
+
+x <- list(Dorado = paste0(k12_Dorado_temp$end,k12_Dorado_temp$strand),
+          Dorado_WGA = paste0(k12_dorado_WGA_temp$end,k12_dorado_WGA_temp$strand),
+          TrueMotif = paste0(k12_motif$Position,k12_motif$Strand))
+pdf("/Users/lubeifang/Desktop/Benchmark/Figure/validate/venn4.pdf",width=5,height = 5)
+ggVennDiagram(x, label_alpha = 0, edge_size = 0.3, label = "count") +
+  scale_fill_gradient(low="white",high = "#C6AEBA") +
+  theme(legend.position = "none")
+dev.off()
+
+
+x <- list(DRseq = paste0(k12_DR_bed$end,k12_DR_bed$strand),
+          TrueMotif = paste0(k12_motif$Position,k12_motif$Strand),
+          SMRT = paste0(k12_SMRT_temp$end,k12_SMRT_temp$strand),
+          Dorado_optimized = paste0(k12_Dorado_optimized_temp$end,k12_Dorado_optimized_temp$strand))
+pdf("/Users/lubeifang/Desktop/Benchmark/Figure/validate/venn2.pdf",width=5,height = 5)
+ggVennDiagram(x, label_alpha = 0, edge_size = 0.3, label = "count") +
+  scale_fill_gradient(low="white",high = "#C6AEBA") +
+  theme(legend.position = "none")
+dev.off()
+```
+
+
+```{R}
+#k12_SMRT
+k12_SMRT_temp <- data.frame(Chromosome = "chromosome",
+                        start = k12_SMRT[k12_SMRT$OriginalValue >= 73.0000,]$Position-1 ,
+                        end = k12_SMRT[k12_SMRT$OriginalValue >= 73.0000,]$Position ,
+                        strand = k12_SMRT[k12_SMRT$OriginalValue >= 73.0000,]$Strand)
+# write.csv(k12_SMRT_temp,"/Users/lubeifang/Desktop/Benchmark/DATA/6mA_IP_Psph/best_k12_SMRT_WT.csv", quote = F, row.names = F)
+k12_SMRT_temp <- toGRanges(k12_SMRT_temp, format="BED", header=FALSE)
+
+#k12_Dorado
+k12_Dorado_temp <- data.frame(Chromosome = "chromosome",
+                        start = k12_dorado[k12_dorado$OriginalValue >= 92.31,]$Position-1 ,
+                        end = k12_dorado[k12_dorado$OriginalValue >= 92.31,]$Position ,
+                        strand = k12_dorado[k12_dorado$OriginalValue >= 92.31,]$Strand)
+k12_Dorado_temp <-  toGRanges(k12_Dorado_temp, format="BED", header=FALSE)
+
+
+k12_Dorado_optimized <- anti_join(k12_dorado[k12_dorado$OriginalValue >= 89.04,],
+                                  k12_dorado_WGA[k12_dorado_WGA$OriginalValue >= 89.04,],
+                                  by=c("Chromosome","Position","Strand"))
+k12_Dorado_optimized_temp <- data.frame(Chromosome = "chromosome",
+                                        start = k12_Dorado_optimized$Position-1 ,
+                                        end = k12_Dorado_optimized$Position ,
+                                        strand = k12_Dorado_optimized$Strand)
+k12_Dorado_optimized_temp <-  toGRanges(k12_Dorado_optimized_temp, format="BED", header=FALSE)
+
+k12_motif_temp <- data.frame(Chromosome = "chromosome",
+                              start = k12_motif$Position-1 ,
+                              end = k12_motif$Position ,
+                              strand = k12_motif$Strand)
+k12_motif_temp <-  toGRanges(k12_motif_temp, format="BED", header=FALSE)
+```
+
+```{r}
+ol <- findOverlapsOfPeaks(k12_SMRT_temp,k12_DR_gr,k12_DM_gr)
+ol <- findOverlapsOfPeaks(k12_Dorado_temp,k12_DR_gr,k12_DM_gr)
+ol <- findOverlapsOfPeaks(k12_motif_temp,k12_DR_gr,k12_DM_gr)
+
+makeVennDiagram(ol)
+pdf("/Users/lubeifang/Desktop/Benchmark/Figure/IP/WT&MU.pdf",width=4,height = 4)
+makeVennDiagram(ol,NameOfPeaks = c("WT_6mA-IP-seq", "MU_6mA-IP-seq",""),
+                cex = 1.5,cat.cex = 1,fill = c("#B8A8CF","#E7BCC6"),
+                cat.col = c("#B8A8CF","#E7BCC6"),
+                col=c("#B8A8CF","#E7BCC6"),
+                output = T, imagetype="pdf" , height = 480 , width = 480 , resolution = 300)
+dev.off()
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Draw PR curve and ROC curve
+
+```{R}
+# for AUPRC, a is Recall, b is Precision; for AUROC, a is FPR, b is TPR
+get.auc <- function(tool,a,b) {
+  a.vector <- trimed.df[trimed.df$Tool == tool,][[a]]
+  a.vector <- c(0, a.vector, 1)
+  b.vector <- trimed.df[trimed.df$Tool == tool,][[b]]
+  b.vector <- c(0, b.vector, 1)
+  area <- integrate(function(x) approx(a.vector, 
+                                       b.vector, xout = x)$y, 
+                    0, 1,subdivisions = 1000)
+  return(area)
+}
+
+area_PR_k12_SMRT<- get.auc("k12_SMRT", "Recall", "Precision")
+area_PR_k12_dorado <- get.auc("k12_dorado", "Recall", "Precision")
+area_PR_optimized <- get.auc("Optimized", "Recall", "Precision")
+
+# PR Curve
+
+# fill the point 0 and 1
+# trimed.df <- rbind(trimed.df, data.frame(FPR = 0, TPR = 0, Tool = "SMRT"))
+# 
+# # 在 trimed.df 中添加终点 (1, 1)
+# PRC <- trimed.df[,c(1,9,10)] %>%
+#   rbind(data.frame(Recall = 0, Precision = 1, Tool = "SMRT"),
+#         data.frame(Recall = 1, Precision = 0, Tool = "SMRT"),
+#         data.frame(Recall = 0, Precision = 1, Tool = "k12_dorado"),
+#         data.frame(Recall = 1, Precision = 0, Tool = "k12_dorado"))
+
+ggplot(trimed.df, aes(x=Recall, y=Precision, group=Tool, color=Tool))+
+  geom_line() +
+  ggtitle(" PR Curve") +
+  theme_bw() +
+  scale_color_manual(values = c("#9BBFCF","#98B85D","#C6AEBA","#DFD6A6","#B7B2D0","#5AA4AE","#BEE3D4")) +
+  annotate("text", x = 0.25, y = 0.1, label = paste0("SMRT AUPRC = ",area_PR_k12_SMRT[["value"]])) +
+  annotate("text", x = 0.25, y = 0.05, label = paste0("k12_dorado AUPRC = ",area_PR_k12_dorado[["value"]])) +
+  annotate("text", x = 0.25, y = 0, label = paste0("Optimiezed AUPRC = ",area_PR_optimized[["value"]]))
+
+
+
+# draw ROC curve
+area_ROC_k12_SMRT<- get.auc("SMRT", "FPR", "TPR")
+area_ROC_k12_dorado <- get.auc("k12_dorado", "FPR", "TPR")
+# PR Curve
+ROC <- trimed.df[,c(1,12,14)] %>%
+  rbind(data.frame(FPR = 1, TPR = 1, Tool = "SMRT"),
+        data.frame(FPR = 0, TPR = 0, Tool = "SMRT"),
+        data.frame(FPR = 1, TPR = 1, Tool = "k12_dorado"),
+        data.frame(FPR = 0, TPR = 0, Tool = "k12_dorado"))
+ggplot(ROC, aes(x= FPR, y= TPR, group=Tool, color=Tool))+
+  geom_line() +
+  ggtitle(" ROC Curve") +
+  theme_bw() +
+  scale_color_manual(values = c("#9BBFCF","#98B85D","#C6AEBA","#DFD6A6","#B7B2D0","#5AA4AE","#BEE3D4")) +
+  annotate("text", x = 0.75, y = 0.95, label = paste0("k12_SMRTAUROC = ",area_ROC_SMRT[["value"]])) +
+  annotate("text", x = 0.75, y = 0.9, label = paste0("k12_dorado AUROC = ",area_ROC_k12_dorado[["value"]]))
+```
+
+Get the best cutoff
+
+```{R}
+dataset.name <- c("k12_SMRT", "k12_dorado", "Optimized")
+best.df <- data.frame()
+
+trimed.df<-read.csv("/Users/lubeifang/Desktop/Benchmark/intermediateFILE/k12.trimed.df.csv", row.names = 1)
+trimed.df$F1score <- as.numeric(trimed.df$F1score)
+
+# Give a dataframe of best F1 with cutoff
+for (k in dataset.name){
+  print(k)
+  # Get the row of best F1 score
+  df.cate <- subset(trimed.df, Tool == k)
+  df.cate <- subset(df.cate,F1score == max(df.cate$F1score))
+  best.df.temp <- df.cate[order(df.cate$OriginalValue, decreasing = F),][1,]
+  best.df.temp <- cbind(Type = "BestF1", best.df.temp)
+  best.df <- rbind(best.df, best.df.temp)
+  # Get the row of best Recall score
+  df.cate <- subset(trimed.df, Tool == k) 
+  df.cate <- subset(df.cate,Recall == max(df.cate$Recall))
+  best.df.temp <- df.cate[order(df.cate$Recall, decreasing = F),][1,]
+  best.df.temp <- cbind(Type = "BestRecall", best.df.temp)
+  best.df <- rbind(best.df, best.df.temp)
+  # Get the row of best Precision score
+  df.cate <- subset(trimed.df, Tool == k) 
+  df.cate <- subset(df.cate,Precision == max(df.cate$Precision))
+  best.df.temp <- df.cate[order(df.cate$Precision, decreasing = F),][1,]
+  best.df.temp <- cbind(Type = "BestPrecision", best.df.temp)
+  best.df <- rbind(best.df, best.df.temp)
+}
+rm(best.df.temp, df.cate)
+
+# Best cutoff for k12_dorado
+k12_dorado_bestf1_OV <- best.df[best.df$Tool == "k12_dorado" & best.df$Type == "BestF1",]$OriginalValue
+k12_dorado_bestf1_OV
+
+outliers <- nrow(k12_dorado_WGA[k12_dorado_WGA$OriginalValue >= k12_dorado_bestf1_OV,])
+outliers
+common <- nrow(k12_dorado[k12_dorado$OriginalValue >= k12_dorado_bestf1_OV,])
+common
+
+# Calculate outliers discovery rate
+ODR <- outliers/common
+ODR
+
+# Calculate outliers in ground truth
+O_gt <- inner_join(k12_dorado_WGA[k12_dorado_WGA$OriginalValue >= k12_dorado_bestf1_OV,], k12_motif, 
+                   by = c("Position", "Chromosome", "Strand"))
+nrow(O_gt)/outliers
+```
+## DMseq
+```{r}
+
+# k12_DR
+k12_DM_1 = fread("/Users/lubeifang/Desktop/Benchmark/DATA/validate/k12/GSM5830901_K12-rep1-methylation-rate-Dm-seq.tsv",sep="\t", header = T)
+k12_DM_1 <- k12_DM_1[,c(1,2,3,5,7)]
+k12_DM_1$ratio <- k12_DM_1$convertedBaseCount/(k12_DM_1$convertedBaseCount + k12_DM_1$unconvertedBaseCount)
+k12_DM_2 = fread("/Users/lubeifang/Desktop/Benchmark/DATA/validate/k12/GSM5830902_K12-rep2-methylation-rate-Dm-seq.tsv",sep="\t", header = T)
+k12_DM_2 <- k12_DM_2[,c(1,2,3,5,7)]
+k12_DM_2$ratio <- k12_DM_2$convertedBaseCount/(k12_DM_2$convertedBaseCount + k12_DM_2$unconvertedBaseCount)
+k12_DM_3 = fread("/Users/lubeifang/Desktop/Benchmark/DATA/validate/k12/GSM5830903_K12-rep3-methylation-rate-Dm-seq.tsv",sep="\t", header = T)
+k12_DM_3 <- k12_DM_3[,c(1,2,3,5,7)]
+k12_DM_3$ratio <- k12_DM_3$convertedBaseCount/(k12_DM_3$convertedBaseCount + k12_DM_3$unconvertedBaseCount)
+
+k12_DM_1 <- k12_DM_1[order(k12_DM_1$ratio,decreasing = T),]
+temp1 <- k12_DM_1[k12_DM_1$ratio >= 0.98,]
+temp2 <- k12_DM_2[k12_DM_2$ratio >= 0.98,]
+temp3 <- k12_DM_3[k12_DM_3$ratio >= 0.98,]
+
+temp4 <- inner_join(temp1,temp2,by=c("pos","strand"))
+k12_DM <- inner_join(temp4,temp3,by=c("pos","strand"))
+```
+
+
+## Use DR as ground truth
+## 1) site/5-mer
+Calculate F1 score of each tools Plot F1 score
+```{R}
+k12_DR_gt <- data.frame(Chromosome = "chromosome",
+                        Position = k12_DR$position +1,
+                        Strand = k12_DR$strand,
+                        OriginalValue = 1,
+                        Fraction = 1,
+                        Coverage = 1,
+                        Rank = 1,
+                        Value = 1)
+
+dataset.name <- c("k12_SMRT","k12_dorado","k12_tombo")
+k12.trimed.df <- data.frame()
+
+for (name in dataset.name){
+  print(name)
+  df <- get(name)
+  Asites <- k12_A
+  if (name == "k12_SMRT"){
+    trimed_temp <-  get.trim.df.A(df, k12_DR_gt)
+    k12.trimed.df <- rbind(k12.trimed.df, data.frame(Tool = name, as.data.frame(trimed_temp)))
+    rm(trimed_temp)
+  }
+  else{
+    df_WGA <- get(paste0(name,"_WGA"))
+    if (name =="k12_dorado") {
+      trimed_temp <-  get.trim.df.A(df, k12_DR_gt)
+      k12.trimed.df <- rbind(k12.trimed.df, data.frame(Tool = name, as.data.frame(trimed_temp)))
+      rm(trimed_temp)
+      trimed_temp <-  get.trim.df.LOSTA(df,df_WGA, k12_DR_gt)
+      k12.trimed.df <- rbind(k12.trimed.df, data.frame(Tool = paste0(name,"_Optimized"),
+                                                     as.data.frame(trimed_temp)))
+      rm(trimed_temp)
+    }
+    else {
+      df_WGA <- get(paste0(name,"_WGA"))
+      trimed_temp <-  get.trim.df.ATCG(df, k12_DR_gt)
+      k12.trimed.df <- rbind(k12.trimed.df, data.frame(Tool = name, as.data.frame(trimed_temp)))
+      rm(trimed_temp)
+      trimed_temp <-  get.trim.df.LOSTATCG(df,df_WGA, k12_DR_gt)
+      k12.trimed.df <- rbind(k12.trimed.df, data.frame(Tool = paste0(name,"_Optimized"),
+                                                     as.data.frame(trimed_temp)))
+      rm(trimed_temp)
+    }
+  }
+  k12.trimed.df[is.na(k12.trimed.df)] <- 0
+}
+
+
+# k12.trimed.df<- read.csv("/Users/lubeifang/Desktop/Benchmark/intermediateFILE/k12.trimed.df1115.csv")
+write.csv(k12.trimed.df,"/Users/lubeifang/Desktop/Benchmark/intermediateFILE/k12_DR.trimed.df.csv", row.names = F)
+```
+
+
+### plot
+```{R}
+k12.trimed.df1 <- read.csv("/Users/lubeifang/Desktop/Benchmark/intermediateFILE/k12.trimed.df1115.csv")
+k12.trimed.df2 <- read.csv("/Users/lubeifang/Desktop/Benchmark/intermediateFILE/k12_DR.trimed.df.csv")
+
+a <- ggplot(k12.trimed.df1, aes(x=Rank, y=F1score, group=Tool, color=Tool))+
+  geom_line(size=0.4) +
+  theme_light() +
+  xlab("Rank") +
+  ylab("F1 score") +
+  ggtitle("Ground Truth: MTases Motif sites") + 
+  theme(
+    panel.border = element_rect(color = "black", fill = NA),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_blank(),
+    panel.background = element_rect(fill='transparent'),
+    legend.position = "none"
+  ) +
+  scale_color_manual(values = c("#98B85D","#e29578","#B395BD","#a9a9a9","#287c9e"))
+b <- ggplot(k12.trimed.df2, aes(x=Rank, y=F1score, group=Tool, color=Tool))+
+  geom_line(size=0.4) +
+  theme_light() +
+  xlab("Rank") +
+  ylab("F1 score") +
+  ggtitle("Ground Truth: 6mA DR-seq results") + 
+  theme(
+    panel.border = element_rect(color = "black", fill = NA),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_blank(),
+    panel.background = element_rect(fill='transparent')
+  ) +
+  scale_color_manual(values = c("#98B85D","#e29578","#B395BD","#a9a9a9","#287c9e"))
+a+b
+ggsave("/Users/lubeifang/Desktop/k12_gt.pdf", width = 10, height = 4)
+```
+
+
+
+
+```{r}
+data <- data.frame(name = c("PacBio SMRT","Oxford Nanopore"),
+                   number = c("24454", "45980"))
+ggplot(data, aes(x=name, y=number, fill=name))+
+  geom_bar(stat="identity") +
+  theme_light() +
+  xlab("") +
+  ylab("") +
+  ggtitle("Number of submitted SRA data")+
+  theme(
+    panel.border = element_rect(color = "black", fill = NA),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_blank(),
+    panel.background = element_rect(fill='transparent'),
+    legend.position = "none"
+  ) +
+  scale_fill_manual(values = c("#B395BD","#98B85D"))
+ggsave("/Users/lubeifang/Desktop/sra_num.pdf", width = 3.5, height = 3)
+```

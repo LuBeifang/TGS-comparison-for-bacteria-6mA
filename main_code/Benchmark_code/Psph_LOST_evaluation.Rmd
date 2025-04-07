@@ -1,0 +1,771 @@
+# 0104 Lost 
+
+We analyze the 6mA sites 0104 Lost in this notebook
+
+First, we need to have all the datas
+
+## Load Data
+```{R}
+# SMRT from PacBio
+# SMRT_LOST <- anti_join(SMRT, SMRT_MU, by = c("Chromosome","Position","Strand"))
+# SMRT_LOST <- arrange(SMRT_LOST, desc(OriginalValue)) %>%
+#   mutate(Rank = row_number())%>%
+#   get.normalized()
+
+# From here, these all comparison tools
+# Tombo level_compare
+Tombo_levelcom_LOST = fread("/Users/lubeifang/Desktop/Benchmark/DATA/0104LOST/tombo_levelcom.bed", sep="\t", header = T)
+Tombo_levelcom_LOST <- Tombo_levelcom_LOST[, c(1,3,6,7)]
+colnames(Tombo_levelcom_LOST) <- c("Chromosome","Position","Strand","OriginalValue")
+Tombo_levelcom_LOST <- arrange(Tombo_levelcom_LOST, desc(OriginalValue)) %>%
+  mutate(Rank = row_number())%>%
+  get.normalized()%>%
+  get.chromosome.name()
+
+# Tombo model_compare 
+Tombo_modelcom_LOST = fread("/Users/lubeifang/Desktop/Benchmark/DATA/0104LOST/tombo_modelcom.bed", sep="\t", header = T)
+Tombo_modelcom_LOST <- Tombo_modelcom_LOST[, c(1,3,6,7)]
+colnames(Tombo_modelcom_LOST) <- c("Chromosome","Position","Strand","OriginalValue")
+Tombo_modelcom_LOST <- arrange(Tombo_modelcom_LOST, desc(OriginalValue)) %>%
+  mutate(Rank = row_number())%>%
+  get.normalized()%>%
+  get.chromosome.name()
+
+# Nanodisco
+Nanodisco_LOST = fread("/Users/lubeifang/Desktop/Benchmark/DATA/0104LOST/nanodisco.csv", header = T)
+Nanodisco_LOST <- drop_na(Nanodisco_LOST)
+Nanodisco_LOST$Strand <- ifelse(Nanodisco_LOST$dir == "forward", "+", "-")
+Nanodisco_LOST <- Nanodisco_LOST[,c(1,2,10,8)]
+colnames(Nanodisco_LOST) <- c("Chromosome","Position","Strand","OriginalValue")
+Nanodisco_LOST$OriginalValue <- -log10(Nanodisco_LOST$OriginalValue)
+Nanodisco_LOST <- arrange(Nanodisco_LOST, desc(OriginalValue)) %>%
+  mutate(Rank = row_number())%>%
+  get.normalized()%>%
+  get.chromosome.name()
+```
+
+###Plot distribution of Value
+```{R}
+data.1448ALOST <- rbind(data.frame(Category = 'Tombo_levelcom', as.data.frame(Tombo_levelcom)),
+                        data.frame(Category = 'Tombo_modelcom', as.data.frame(Tombo_modelcom)),
+                        data.frame(Category = 'Nanodisco', as.data.frame(Nanodisco))) %>%
+  drop_na()
+
+p3 <- ggplot(data.1448ALOST, aes(x=Value, y=Category, fill=Category)) +
+  geom_density_ridges(color = NA) +
+  theme_ridges() + 
+  scale_fill_manual(values = c("#DFD6A6","#5AA4AE","#BEE3D4"))+
+  theme_bw() +
+  ylab("Density") +
+  xlab("Assigned Fraction Probability") +
+  ggtitle("1448A LOST Assigned Fraction Distribution") +
+  theme(legend.position="none")
+
+# ggsave("/Users/lubeifang/Desktop/Benchmark/Figure/distribution/1448ALOST.pdf", width = 8, height = 6, font="Arial")
+
+rm(data.1448AWT)
+```
+### distribution of value in motifs
+
+```{R}
+dataset.name <- c("SMRT", "Tombo_levelcom", "Tombo_modelcom", "Nanodisco", "Tombo_denovo", "mCaller", "Dorado","Hammerhead")
+
+MotifT1$OriginalValue <- 1
+MotifT1$Rank <- 1
+MotifT1$Value <- 1
+type1 <- MotifT1
+type1$index <- paste0(type1$Position, type1$Chromosome, type1$Strand)
+
+type1_value_allT <- data.frame()
+for ( i in dataset.name){
+  print(i)
+  temp <- get(i)
+  temp$index <- paste0(temp$Position, temp$Chromosome, temp$Strand)
+  a <- merge(type1,temp,by="index",all.x=T)
+  a$Rank.y[is.na(a$Rank.y)] <- 1.223e7
+  a$Value.y[is.na(a$Value.y)] <- 0
+  # threshold <- sort(a$Rank.y, decreasing = F)[5]
+  # a$label <- ifelse(a$Rank.y <= threshold, a$index,"")
+  type1_value_allT <- rbind(type1_value_allT,data.frame(index = a$index,
+                                                        name = i,
+                                                        rank = a$Rank.y,
+                                                        value = a$Value.y))
+}
+
+
+library(gghalves)
+library(reshape2) 
+library(ggrepel)
+
+type1_value_allT$name <- gsub("SMRT","ASMRT",type1_value_allT$name)
+type1_value_allT$name <- as.factor(type1_value_allT$name)
+
+p1 <- ggplot(type1_value_allT[type1_value_allT$name != "Nanodisco" & type1_value_allT$name != "Hammerhead",], aes(x=name, y=log10(rank), fill=name)) + 
+  geom_point(position = position_jitter(width =0.05),size = 0.3, alpha = 0.3, color="lightgrey")+
+  geom_half_violin(side='R', trim = T, color = NA) +
+  theme_light() +
+  coord_flip() +
+  scale_fill_manual(values = c("#98B85D","#AC667E","#B395BD","#287c9e","#a9a9a9","#e29578")) +
+  xlab("") +
+  ylab("") +
+  ggtitle("Rank of true 6mA") +
+  theme(panel.border = element_rect(color = "black", fill = NA),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = "none",
+        plot.title = element_text(size=12,hjust=0.5))+
+  scale_x_discrete(limits = rev(c("ASMRT","Dorado","mCaller","Tombo_denovo","Tombo_levelcom","Tombo_modelcom")))
+
+
+p2 <- ggplot(type1_value_allT[type1_value_allT$name != "Nanodisco" & type1_value_allT$name != "Hammerhead",], aes(x=name, y=value, fill=name)) + 
+  geom_point(position = position_jitter(width =0.05),size = 0.3, alpha = 0.3, color="lightgrey") +
+  geom_half_violin(side='R', trim = T, color = NA) +
+  theme_light() +
+  coord_flip() +
+  scale_fill_manual(values = c("#98B85D","#AC667E","#B395BD","#287c9e","#a9a9a9","#e29578")) +
+  xlab("") +
+  ylab("") +
+  ggtitle("Value of true 6mA") +
+  theme(panel.border = element_rect(color = "black", fill = NA),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = "none",
+        axis.text.y = element_blank(),
+        plot.title = element_text(size=12,hjust=0.5),
+        axis.ticks.y = element_blank())+
+  scale_x_discrete(limits = rev(c("ASMRT","Dorado","mCaller","Tombo_denovo","Tombo_levelcom","Tombo_modelcom")))
+
+p <- p1+p2
+ggsave("/Users/lubeifang/Desktop/Benchmark/Figure/F3_trim_LOST/1448ALOST_violin.pdf",p, width = 7, height = 3)
+
+
+```
+
+Then, we call the motifs.
+## MEME_motifs
+```{r}
+library(memes)
+library(seqinr)
+library(GenomicRanges)
+library(rtracklayer)
+library(magrittr)
+library(universalmotif)
+library(Biostrings)
+library(BSgenome)
+library(ggplot2)
+library(tidyr)
+library(gridExtra)
+# load fastq file and make it into stringset, ready for get_sequence
+fasta_file <- "/Users/lubeifang/Desktop/BIOTOOLS/ref/1448A_formeme.fasta"
+psph_stringset <- readDNAStringSet(fasta_file)
+
+# define how to meme search
+# We can change the batch search size for fasta and meme search way
+get.meme <- function(sorted){
+    sorted <- sorted[sorted$Position >= 20, ]
+    bed <- data.frame(chr=sorted$Chromosome,
+                      start=sorted$Position-1,
+                      end=sorted$Position,
+                      Starnd=sorted$Strand)
+    gR <- GRanges(seqnames = bed$chr,
+                  ranges = IRanges(start = bed$start, end = bed$end),
+                  strand = "*")
+    # resize ranges
+    gRr <- resize(gR,30, "center") 
+    sequences <- get_sequence(gRr, psph_stringset)
+    # unique(width(gRr))
+    # s <- data.frame(sequences)
+  meme_results <- runStreme(sequences,control = "shuffle", minw = 10, maxw = 19, nmotifs = 4)
+  return(meme_results)
+}
+
+
+# Do the MEME
+# set how many sites we would like to include
+# top = 5000
+top = 10000
+plot_list <- list()
+meme_results.df <- data.frame()
+top10k.df <- data.frame()
+diff.df <- data.frame()
+dataset.name <- c("SMRT", "Tombo_levelcom", "Tombo_modelcom", "Nanodisco", "Tombo_denovo", "mCaller", "Dorado","Hammerhead")
+
+for (i in dataset.name){
+  print(i)
+  if (i == "SMRT" | i == "Tombo_denovo" | i == "mCaller" | i == "Dorado" | i == "Hammerhead"){
+    name <- i
+    file_WT <- get(name)
+    file_WT <- inner_join(file_WT, Asites, by = c("Chromosome","Position","Strand"))[order(file_WT$Value, decreasing = T),][1:15000,]
+    
+    name <- paste0(i, "_MU")
+    file_MU <- get(name)
+    file_MU <- inner_join(file_MU, Asites, by = c("Chromosome","Position","Strand"))[order(file_MU$Value, decreasing = T),][1:15000,]
+    
+    file <- anti_join(file_WT, file_MU, by = c("Position", "Chromosome", "Strand"))
+    
+    sorted1 <- drop_na(file) # SMRT for 0104LOST have only 2873 rows
+    diff.df <- rbind(diff.df, data.frame(name=i, diffsites=nrow(sorted1)))
+    
+    meme_results <- get.meme(sorted1)
+    plot <- meme_results %>% 
+      to_list() %>% 
+      view_motifs()
+    meme_results <- get.meme(sorted1)
+    meme_results.df <- rbind(meme_results.df, as.data.frame(Tool = i, data.frame(meme_results)))
+    name=paste0(i,"_",top,"motif")
+    plot <- plot + ggtitle(name)
+    plot_list[[length(plot_list) + 1]] <- plot
+  }
+  else {
+    file <- get(paste0(i,"_LOST"))
+    # file <- SMRT_LOST
+    # Order it by Value, and get first top sites file
+    sorted1 <- inner_join(file, Asites, by = c("Chromosome","Position","Strand"))
+    sorted1 <- file[order(file$Value, decreasing = T),][1:top,] # bigger to smaller
+    sorted1 <- drop_na(sorted1) # SMRT for 0104LOST have only 2873 rows
+    meme_results <- get.meme(sorted1)
+    plot <- meme_results %>% 
+      to_list() %>% 
+      view_motifs()
+    meme_results <- get.meme(sorted1)
+    meme_results.df <- rbind(meme_results.df, as.data.frame(Tool = i, data.frame(meme_results)))
+    name=paste0(i,"_",top,"motif")
+    plot <- plot + ggtitle(name)
+    plot_list[[length(plot_list) + 1]] <- plot 
+  }
+}
+
+g <- arrangeGrob(grobs = plot_list, nrow = 2) 
+ggsave(file="1448ALOST_10000motifs.pdf", path = "/Users/lubeifang/Desktop/Benchmark/Figure/F2/",g, width = 32, height = 16)
+
+# to_list(meme_results.df)
+motif_detail <- meme_results.df[,c(-1,-17)]
+write.csv(motif_detail,"/Users/lubeifang/Desktop/Benchmark/Figure/F2/1448AMU_10k_6motifs_memeresults.csv")
+
+rm(get.meme)
+```
+
+### motif enrich sites and pvalue
+```{R}
+diff.df
+
+tool_detail <- data.frame(name=rep(c("ASMRT", "Tombo_levelcom", "Tombo_modelcom", "Nanodisco", "Tombo_denovo", "mCaller", "Dorado","Hammerhead"),1),
+                          type=c(rep(c("Type 1 Motif"),8)),
+                          nsites=as.numeric(c("2862","7258","0","2566","0","72","2812","1086")),
+                          totalsites=as.numeric(c("9719","10000","10000","10000","3396","5420","5993","9795")),
+                          pval=as.numeric(c("8.7e-76","8.1e-255","0","9.2e-48","0","6.2e-02","9.8e-91","3.6e-26")))
+
+# tool_detail<-subset(tool_detail, name!="SMRT")
+tool_detail$pval <- round(-log(tool_detail$pval,10),2)
+tool_detail[tool_detail=="Inf"] <- "0"
+tool_detail$pval <- as.numeric(tool_detail$pval)
+tool_detail$fraction <- round(tool_detail$nsites/tool_detail$totalsites,2)
+tool_detail <- tool_detail[order(tool_detail$name),]
+tool_detail$name <- factor(tool_detail$name, levels = rev(tool_detail$name))
+
+p5<-ggplot() +
+  geom_line(data = tool_detail, aes(x = name, y = nsites, group = type), color = "grey") +
+  geom_point(data = tool_detail, aes(x = name, y = nsites), color = "#98B85D", size = 2) +
+  theme_bw() +
+  coord_flip()+
+  ggtitle("number of sites") +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank()) +
+  xlab("") +
+  ylab("")
+
+p6 <- ggplot() +
+  geom_line(data = tool_detail, aes(x = name, y = pval, group = type), color = "grey") +
+  geom_point(data = tool_detail, aes(x = name, y = pval), color = "#98B85D", size = 2) +
+  theme_bw() +
+  coord_flip()+
+  ggtitle("-log10(p-value)") +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank()) +
+  xlab("") +
+  ylab("")
+
+library(patchwork)
+p <- p1 + p2 + p3 + p4 + p5 + p6 + plot_layout(nrow = 1, guides = "collect")
+ggsave("/Users/lubeifang/Desktop/Benchmark/Figure/F2/Moitf_detail.pdf", width = 15, height = 3.5)
+
+
+ggplot() +
+  geom_bar(data = tool_detail, aes(x = name, y = fraction), fill = "#98B85D",stat = "identity",width = 0.2) +
+  geom_line(data = tool_detail, aes(x = name, y = fraction, group = type), color = "grey") +
+  theme_bw() +
+  geom_text(data = tool_detail, aes(x = name, y = fraction,label = fraction), vjust = -1, color = "#98B85D",size = 3) +
+  ggtitle("Motif enriched sites/LOST sites") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  xlab("") +
+  ylab("") +
+  ylim(0,1)
+ggsave("/Users/lubeifang/Desktop/Benchmark/Figure/F2/LOST_Moitf_ratio.pdf", width = 10, height = 5)
+```
+We will focus on the sites then
+
+## Sites comparison
+### functions define
+#### 5mer-shift
+```{r}
+# define two functions
+# get a 5-mer of SMRT position
+get.5mer.df <- function(df){
+  df1 <- df
+  df1$Position <- df1$Position + 1
+  df2 <- df
+  df2$Position <- df2$Position + 2
+  df3 <- df
+  df3$Position <- df3$Position - 1
+  df4 <- df
+  df4$Position <- df4$Position - 2
+  df5 <- rbind(df1,df2,df3,df4,df) %>%
+    arrange(desc(OriginalValue)) %>%
+    distinct(Position,Strand,Chromosome, .keep_all = T)
+  return(df5)
+}
+
+
+```
+
+
+####get.trim.df.LOSTA
+```{R}
+# Compare to groundtruth
+# For all ATCG predict tools
+# 1448A chromosome, large plasmid and small plasmid have 1.22e7 nt in both strands
+
+# for mCaller, Dorado, they are singel mode and A only, so the don't need shift
+# for single mode, they need to find the LOST sites of WT when compare to KO
+get.trim.df.LOSTA <- function(preds_WT, preds_KO, gt_df) {
+  TP1 <- c()
+  FN1 <- c() 
+  FP1 <- c()
+  TN1 <- c()
+  TPR1 <- c()
+  TNR1 <- c()
+  FPR1 <- c()
+  precision1 <- c()
+  recall1 <- c()
+  F1score1 <- c()
+  rank1 <- c()
+  originalvalue1 <- c()
+  value1 <- c()
+  
+  cutoffs <- seq(log10(1), log10(2.573e6), length.out = 200) # for ATCG
+  cutoffs <- 10^cutoffs
+  
+  
+  for (cutoff in cutoffs) {
+    print(cutoff)
+    preds_WT_temp <- subset(preds_WT, Rank <= cutoff) # if it is rank, make sure <=; if it is fraction, make sure >=
+    preds_KO_temp <- subset(preds_KO, OriginalValue >= min(preds_WT_temp$OriginalValue))
+    preds <- anti_join(preds_WT_temp, preds_KO_temp, by = c("Position", "Chromosome", "Strand"))
+    rank1 <- c(rank1,nrow(preds_WT_temp))
+    value1 <- c(value1,min(preds_WT_temp$Value))
+    originalvalue1 <- c(originalvalue1,min(preds_WT_temp$OriginalValue))
+    
+    intersection <- inner_join(preds, gt_df, by = c("Position", "Chromosome", "Strand"))
+    TP <- nrow(intersection)
+    TP1 <- c(TP1,TP)
+    union <- rbind(preds,gt_df)
+    union <- union[!duplicated(union[, c("Position", "Chromosome", "Strand")]), ]
+    diff <- anti_join(Asites, union, by = c("Position", "Chromosome", "Strand"))
+    TN <- nrow(diff)
+    TN1 <- c(TN1,TN)
+    FP = nrow(preds)-TP
+    FP1 <- c(FP1,FP)
+    FN = nrow(gt_df)-TP
+    FN1 <- c(FN1,FN)
+    precision = TP/nrow(preds)
+    precision1 <- c(precision1, precision)
+    recall = TP/nrow(gt_df)
+    recall1 <- c(recall1, recall)
+    F1score = 2*precision*recall/(precision+recall)
+    F1score1 <- c(F1score1,F1score)
+    TPR1 <- c(TPR1, TP/(TP+FN))
+    TNR1 <- c(TNR1, TN/(TN+FP))
+    FPR1 <- c(FPR1, FP/(FP+TN))
+  }
+  plot1 <- data.frame(Cutoff = cutoffs, Rank = rank1, Value = value1, OriginalValue = originalvalue1, TP = TP1, FN = FN1, FP = FP1, TN = TN1, Precision = precision1, Recall = recall1, F1score = F1score1, TPR = TPR1, TNR = TNR1, FPR = FPR1) 
+  return(plot1)
+} 
+
+```
+
+
+####get.trim.df.LOSTATCG
+```{R}
+# for mCaller, Dorado, they are singel mode and A only, so the don't need shift
+# for single mode, they need to find the LOST sites of WT when compare to KO
+get.trim.df.LOSTATCG <- function(preds_WT, preds_KO, gt_df) {
+  
+  gt_df_5mer <- get.5mer.df(gt_df)
+  
+  TP1 <- c()
+  FN1 <- c() 
+  FP1 <- c()
+  TN1 <- c()
+  TPR1 <- c()
+  TNR1 <- c()
+  FPR1 <- c()
+  precision1 <- c()
+  recall1 <- c()
+  F1score1 <- c()
+  rank1 <- c()
+  originalvalue1 <- c()
+  value1 <- c()
+  
+  cutoffs <- seq(log10(1), log10(1.223e7), length.out = 200) # for ATCG
+  cutoffs <- 10^cutoffs
+  
+  for (cutoff in cutoffs) {
+    print(cutoff)
+    preds_WT_temp <- subset(preds_WT, Rank <= cutoff) # if it is rank, make sure <=; if it is fraction, make sure >=
+    preds_KO_temp <- subset(preds_KO, OriginalValue >= min(preds_WT_temp$OriginalValue))
+    preds <- anti_join(preds_WT_temp, preds_KO_temp, by = c("Position", "Chromosome", "Strand"))
+    rank1 <- c(rank1,nrow(inner_join(preds_WT_temp, Asites, by = c("Chromosome","Position","Strand"))))
+    value1 <- c(value1,min(preds_WT_temp$Value))
+    originalvalue1 <- c(originalvalue1,min(preds_WT_temp$OriginalValue))
+    intersection1 <- inner_join(preds, gt_df_5mer, by = c('Position','Chromosome','Strand'))
+    TP_precision = nrow(intersection1)
+    TP1 <- c(TP1,TP_precision)
+    FP = nrow(preds)-TP_precision
+    FP1 <- c(FP1,FP)
+    
+    union <- rbind(preds,gt_df)
+    union <- union[!duplicated(union[, c("Position", "Chromosome", "Strand")]), ]
+    diff <- anti_join(Asites, union, by = c("Position", "Chromosome", "Strand"))
+    TN <- nrow(diff)
+    TN1 <- c(TN1,TN)
+    
+    b <- get.5mer.df(preds)
+    intersection2 <- inner_join(b, gt_df, by = c('Position','Chromosome','Strand'))
+    TP_recall = nrow(intersection2)
+    FN = nrow(gt_df)-TP_recall
+    FN1 <- c(FN1,FN)
+    precision = TP_precision/nrow(preds)
+    precision1 <- c(precision1, precision)
+    recall = TP_recall/nrow(gt_df)
+    recall1 <- c(recall1, recall)
+    F1score = 2*precision*recall/(precision+recall)
+    F1score1 <- c(F1score1,F1score)
+    TPR1 <- c(TPR1, TP_precision/(TP_precision+FN))
+    TNR1 <- c(TNR1, TN/(TN+FP))
+    FPR1 <- c(FPR1, FP/(FP+TN))
+  }
+  plot1 <- data.frame(Cutoff = cutoffs, Rank = rank1, Value = value1, OriginalValue = originalvalue1, TP = TP1, FN = FN1, FP = FP1, TN = TN1, Precision = precision1, Recall = recall1, F1score = F1score1, TPR = TPR1, TNR = TNR1, FPR = FPR1) 
+  return(plot1)
+}  
+```
+
+
+####get.trim.df.ATCG
+```{R}
+# For ATCG tools
+get.trim.df.ATCG <- function(preds_df, gt_df) {
+  
+  gt_df_5mer <- get.5mer.df(gt_df)
+  
+  TP1 <- c()
+  FN1 <- c() 
+  FP1 <- c()
+  TN1 <- c()
+  TPR1 <- c()
+  TNR1 <- c()
+  FPR1 <- c()
+  precision1 <- c()
+  recall1 <- c()
+  F1score1 <- c()
+  rank1 <- c()
+  originalvalue1 <- c()
+  value1 <- c()
+  
+  cutoffs <- seq(log10(1), log10(1.223e7), length.out = 200) # for ATCG
+  cutoffs <- 10^cutoffs
+  
+  for (cutoff in cutoffs) {
+    print(cutoff)
+    preds <- subset(preds_df, Rank <= cutoff) # if it is rank, make sure <=; if it is fraction, make sure >=
+    rank1 <- c(rank1,nrow(inner_join(preds, Asites, by = c("Chromosome","Position","Strand"))))
+    value1 <- c(value1,min(preds$Value))
+    originalvalue1 <- c(originalvalue1,min(preds$OriginalValue))
+
+    intersection1 <- inner_join(preds, gt_df_5mer, by = c('Position','Chromosome','Strand'))
+    TP_precision = nrow(intersection1)
+    TP1 <- c(TP1,TP_precision)
+    union <- rbind(preds,gt_df)
+    union <- union[!duplicated(union[, c("Position", "Chromosome", "Strand")]), ]
+    diff <- anti_join(Asites, union, by = c("Position", "Chromosome", "Strand"))
+    TN <- nrow(diff)
+    TN1 <- c(TN1,TN)
+    FP = nrow(preds)-TP_precision
+    FP1 <- c(FP1,FP)
+    
+    union <- rbind(preds,gt_df)
+    union <- union[!duplicated(union[, c("Position", "Chromosome", "Strand")]), ]
+    diff <- anti_join(Asites, union, by = c("Position", "Chromosome", "Strand"))
+    TN <- nrow(diff)
+    TN1 <- c(TN1,TN)
+    
+    b <- get.5mer.df(preds)
+    intersection2 <- inner_join(b, gt_df, by = c('Position','Chromosome','Strand'))
+    TP_recall = nrow(intersection2)
+    FN = nrow(gt_df)-TP_recall
+    FN1 <- c(FN1,FN)
+    
+    precision = TP_precision/nrow(preds)
+    precision1 <- c(precision1, precision)
+    recall = TP_recall/nrow(gt_df)
+    recall1 <- c(recall1, recall)
+    F1score = 2*precision*recall/(precision+recall)
+    F1score1 <- c(F1score1,F1score)
+    TPR1 <- c(TPR1, TP_precision/(TP_precision+FN))
+    TNR1 <- c(TNR1, TN/(TN+FP))
+    FPR1 <- c(FPR1, FP/(FP+TN))
+  }
+  plot1 <- data.frame(Cutoff = cutoffs, Rank = rank1, Value = value1, OriginalValue = originalvalue1, TP = TP1, FN = FN1, FP = FP1, TN = TN1, Precision = precision1, Recall = recall1, F1score = F1score1, TPR = TPR1, TNR = TNR1, FPR = FPR1) 
+  return(plot1)
+} 
+
+```
+
+Get trimed.df and draw F1 score
+### trimed.df calculated
+```{r}
+dataset.name <- c("Tombo_levelcom", "Tombo_modelcom", "Nanodisco", "Tombo_denovo", "mCaller", "Dorado", "Hammerhead", "SMRT")
+trimed.df <- data.frame()
+for (name in dataset.name){
+  print(name)
+  # single mode
+  if (name == "SMRT"|name == "mCaller" | name == "Dorado" | name == "Hammerhead" | name == "Tombo_denovo"){
+      df_WT <- get(name)
+      df_MU <- get(paste0(name, "_MU"))
+    if (name == "Tombo_denovo" | name == "Hammerhead"){
+      # Tombo_denovo and Hammerhead, they are ATCG and single mode, shift and 1.2e7 cutoffs
+      trimed_temp <-  get.trim.df.LOSTATCG(df_WT, df_MU, MotifT1)
+      trimed.df <- rbind(trimed.df, data.frame(Tool = name, as.data.frame(trimed_temp)))
+    }
+    else{
+      #mCaller and Dorado, they are signle mode and only A sites, no shift and 2.57e6 cutoffs
+      trimed_temp <-  get.trim.df.LOSTA(df_WT, df_MU, MotifT1)
+      trimed.df <- rbind(trimed.df, data.frame(Tool = name, as.data.frame(trimed_temp)))
+    }
+  }
+  else{
+    # Nanodisco, Tombo_levelcom, Nanodisco, they are comparision mode and all ATCG, shift and 1.2e7 cutoffs
+    df <- get(paste0(name,"_LOST"))
+    trimed_temp <-  get.trim.df.ATCG(df, MotifT1)
+    trimed.df <- rbind(trimed.df, data.frame(Tool = name, as.data.frame(trimed_temp)))
+  }
+  rm(trimed_temp)
+  trimed.df[is.na(trimed.df)] <- 0
+}
+  
+
+write.csv(trimed.df,"/Users/lubeifang/Desktop/Benchmark/intermediateFILE/1448ALOST.trimed.df1114.csv",row.names = F)
+```
+
+## plot figures
+### F1 score
+```{R}
+trimed.df <- read.csv("/Users/lubeifang/Desktop/Benchmark/intermediateFILE/1448ALOST.trimed.df1114.csv")
+
+p <- ggplot(trimed.df[trimed.df$Tool != "Nanodisco" & trimed.df$Tool != "Hammerhead",], aes(x=Rank, y=F1score, group=Tool, color=Tool))+
+  geom_line(size=0.4) +
+  theme_light() +
+  xlab("Rank") +
+  ylab("F1 score") +
+  theme(
+    panel.border = element_rect(color = "black", fill = NA),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_blank(),
+    panel.background = element_rect(fill='transparent'),
+    legend.position="none"
+  ) +
+  scale_color_manual(values = c("#98B85D","#AC667E","#B395BD","#287c9e","#a9a9a9","#e29578"))
+
+
+pp <- ggplot(trimed.df[trimed.df$Tool != "Nanodisco" & trimed.df$Tool != "Hammerhead",], aes(x=Rank, y=F1score, group=Tool, color=Tool))+
+  geom_line(size=0.3) +
+  theme_bw(base_size = 9) +
+  theme(legend.position="none")+
+  scale_color_manual(values = c("#98B85D","#AC667E","#B395BD","#287c9e","#a9a9a9","#e29578")) +
+    xlim(0,10000)+
+  xlab("")+
+  ylab("")
+p1 <- p + inset_element(pp, left = 0.3, bottom = 0.3, right = 0.95, top = 0.95) 
+p1
+# ggsave("/Users/lubeifang/Desktop/Benchmark/Figure/F3_trim_LOST/1448ALOST1.pdf", p1, width = 3.3, height = 3)
+
+p2 <- ggplot(trimed.df[trimed.df$Tool != "Nanodisco" & trimed.df$Tool != "Hammerhead",], aes(x=Recall, y=Precision, group=Tool, color=Tool))+
+  geom_point(size=0.4) +
+  theme_light() +
+  theme(
+    panel.border = element_rect(color = "black", fill = NA),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_blank(),
+    legend.position=c(0.5,0.8),
+    legend.title = element_blank(),
+    legend.text = element_text(size = 8),
+    legend.key.height = unit(0.5, "mm"),
+    legend.background = element_rect(fill = 'transparent', size = 0.3),
+    panel.background = element_rect(fill='transparent')
+  ) +
+  scale_color_manual(values = c("#98B85D","#AC667E","#B395BD","#287c9e","#a9a9a9","#e29578")) 
+# ggsave("/Users/lubeifang/Desktop/Benchmark/Figure/F3_trim_LOST/1448ALOST2.pdf", p2, width = 3.3, height = 3)
+
+p3 <- ggplot(trimed.df[trimed.df$Tool != "Nanodisco" & trimed.df$Tool != "Hammerhead",], aes(x=FPR, y=TPR, group=Tool, color=Tool))+
+  geom_point(size=0.4) +
+  theme_light() +
+    theme(
+    panel.border = element_rect(color = "black", fill = NA),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_blank(),
+    legend.position=c(0.55,0.18),
+    legend.title = element_blank(),
+    legend.text = element_text(size = 8),
+    legend.key.height = unit(0.5, "mm"),
+    legend.background = element_rect(fill = 'transparent', size = 0.3),
+    panel.background = element_rect(fill='transparent')
+  )+
+  scale_color_manual(values = c("#98B85D","#AC667E","#B395BD","#287c9e","#a9a9a9","#e29578"))
+# ggsave("/Users/lubeifang/Desktop/Benchmark/Figure/F3_trim_LOST/1448ALOST3.pdf", p3, width = 3.3, height = 3)
+plot1 <- p2 + p3 + c
+ggsave("/Users/lubeifang/Desktop/Benchmark/Figure/F3_trim_LOST/1448ALOST2.pdf", plot1, width = 9.6, height = 3)
+
+
+a1 <- ggplot(trimed.df[trimed.df$Tool != "Nanodisco" & trimed.df$Tool != "Hammerhead",], aes(x=log10(Rank), y=Precision, group=Tool, color=Tool))+
+  geom_line(size=0.4) +
+  theme_classic() +
+  xlab("log10(Rank)") +
+  ylab("Precision") +
+  theme(
+    axis.line = element_line(linewidth = 0.3),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(fill='transparent'),
+    legend.position="none"
+  ) +
+  #xlim(0,10000)+
+  scale_color_manual(values = c("#98B85D","#AC667E","#B395BD","#287c9e","#a9a9a9","#e29578"))
+a2 <- ggplot(trimed.df[trimed.df$Tool != "Nanodisco" & trimed.df$Tool != "Hammerhead",], aes(x=log10(Rank), y=Recall, group=Tool, color=Tool))+
+  geom_line(size=0.4) +
+  theme_classic() +
+  xlab("log10(Rank)") +
+  ylab("Recall") +
+  theme(
+    axis.line = element_line(linewidth = 0.3),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(fill='transparent'),
+    legend.position="none"
+  ) +
+  #xlim(0,10000)+
+  scale_color_manual(values = c("#98B85D","#AC667E","#B395BD","#287c9e","#a9a9a9","#e29578"))
+
+
+# ggsave("/Users/lubeifang/Desktop/Benchmark/Figure/F3_trim_LOST/1448ALOST_P&R.pdf", plota, width = 2.7, height = 3.7)
+
+
+b1 <- ggplot(trimed.df[trimed.df$Tool != "Nanodisco" & trimed.df$Tool != "Hammerhead",], aes(x=log10(Rank), y=TPR, group=Tool, color=Tool))+
+  geom_line(size=0.4) +
+  theme_classic() +
+  xlab("log10(Rank)") +
+  ylab("TPR") +
+  theme(
+    axis.line = element_line(linewidth = 0.3),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(fill='transparent'),
+    legend.position="none"
+  ) +
+ #xlim(0,10000)+
+  scale_color_manual(values = c("#98B85D","#AC667E","#B395BD","#287c9e","#a9a9a9","#e29578"))
+b2 <- ggplot(trimed.df[trimed.df$Tool != "Nanodisco" & trimed.df$Tool != "Hammerhead",], aes(x=log10(Rank), y=FPR, group=Tool, color=Tool))+
+  geom_line(size=0.4) +
+  theme_classic() +
+  xlab("log10(Rank)") +
+  ylab("FPR") +
+  theme(
+    axis.line = element_line(linewidth = 0.3),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(fill='transparent'),
+    legend.position="none"
+  ) +
+  #xlim(0,10000)+
+  scale_color_manual(values = c("#98B85D","#AC667E","#B395BD","#287c9e","#a9a9a9","#e29578"))
+
+plota <- (p1 | (a1 / a2) |  (b1/b2) | c) + plot_layout(widths = c(1.5, 1, 1,1))
+ggsave("/Users/lubeifang/Desktop/Benchmark/Figure/F3_trim_LOST/1448ALOST1.pdf", plota, width = 10, height = 3)
+
+# specificity
+c <- ggplot(trimed.df[trimed.df$Tool != "Nanodisco" & trimed.df$Tool != "Hammerhead",], aes(x=log10(Rank), y=TNR, group=Tool, color=Tool))+
+  geom_line(size=0.4) +
+  theme_classic() +
+  xlab("log10(Rank)") +
+  ylab("Specificity (FPR)") +
+  theme(
+    axis.line = element_line(linewidth = 0.3),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(fill='transparent'),
+    legend.position="none"
+  ) +
+  #xlim(0,10000)+
+  scale_color_manual(values = c("#98B85D","#AC667E","#B395BD","#287c9e","#a9a9a9","#e29578"))
+
+
+```
+
+
+### Get the best F1 score
+```{R}
+dataset.name <- c("Tombo_levelcom", "Tombo_modelcom", "Nanodisco", "Tombo_denovo", "mCaller", "Dorado")
+best.df <- data.frame()
+
+# Give a dataframe of best F1 with cutoff
+for (k in dataset.name){
+  # Get the row of best F1 score
+  df.cate <- subset(trimed.df, Tool == k)
+  df.cate <- subset(df.cate,F1score == max(df.cate$F1score))
+  best.df.temp <- df.cate[order(df.cate$OriginalValue, decreasing = F),][1,]
+  best.df.temp <- cbind(Type = "BestF1", best.df.temp)
+  best.df <- rbind(best.df, best.df.temp)
+  # Get the row of best Recall score
+  df.cate <- subset(trimed.df, Tool == k) 
+  df.cate <- subset(df.cate,Recall == max(df.cate$Recall))
+  best.df.temp <- df.cate[order(df.cate$Recall, decreasing = F),][1,]
+  best.df.temp <- cbind(Type = "BestRecall", best.df.temp)
+  best.df <- rbind(best.df, best.df.temp)
+  # Get the row of best Precision score
+  df.cate <- subset(trimed.df, Tool == k) 
+  df.cate <- subset(df.cate,Precision == max(df.cate$Precision))
+  best.df.temp <- df.cate[order(df.cate$Precision, decreasing = F),][1,]
+  best.df.temp <- cbind(Type = "BestPrecision", best.df.temp)
+  best.df <- rbind(best.df, best.df.temp)
+}
+rm(best.df.temp, df.cate)
+
+dataset.name <- c("Tombo_levelcom", "Tombo_modelcom", "Nanodisco", "Tombo_denovo", "mCaller", "Dorado", "Hammerhead","SMRT")
+AUC <- data.frame()
+for (k in c("trimed.df")){
+  trimed.df<-get(k)
+  for (i in dataset.name){
+    area_PR <- get.auc(i, "Recall", "Precision")
+    area_ROC <- get.auc(i, "FPR", "TPR")
+    AUC <- rbind(AUC, data.frame(set=k,name = i, PRC = round(area_PR[["value"]],3), ROC = round(area_ROC[["value"]],3)))
+  }
+}
+
+AUC
+```
+
+
+

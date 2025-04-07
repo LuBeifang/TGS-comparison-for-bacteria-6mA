@@ -1,0 +1,98 @@
+####################################################
+####################################################
+Section A DATA analysis
+####################################################
+####################################################
+```{r}
+rm(list=ls())
+getwd()
+```
+##########################
+Load datas
+```{r}
+source("/Users/lubeifang/Desktop/Benchmark/code/ReadDATA.R")
+setwd('/Users/lubeifang/Desktop/')
+library(dplyr)
+library(data.table)
+library(ggplot2)
+library(gridExtra)
+```
+
+##########################
+DRAW
+
+A1 fraction distribution for all Nanopore results
+
+```{r}
+library(ggplot2)
+library(hrbrthemes)
+library(dplyr)
+library(tidyr)
+library(viridis)
+library(extrafont)
+
+# data_frame_names <- c("data.1448AWT", "data.0104KO", "data.0104LOSS")
+# plot_list <- list()
+# 
+# # 遍历数据框名字和类别
+# for (i in data_frame_names) {
+#   print(i)
+#   df <- get(i)
+#   for (Cate in unique(df$Category)) {
+#     print(Cate)
+#     df_Cate <- subset(df, Category == Cate)
+#     plot <- ggplot(df_Cate, aes(x = Value)) +
+#       geom_histogram() +
+#       labs(title = paste0(i, " ", Cate), x = "Value", y = "Density") +
+#       theme_classic()
+#     plot_list[[length(plot_list) + 1]] <- plot
+#     rm(df_Cate)
+#   }
+#   rm(df)
+# }
+# 
+# 
+# 
+# # generates g1 for all 1448AWT datasets distribution histogram
+# g <- arrangeGrob(grobs = plot_list, ncol=6) #generates g
+# ggsave("r9distribution.pdf",
+#        path = "/Users/lubeifang/Desktop/Benchmark/Figure/distribution/",g, width = 35, height = 20)
+# rm(g)
+
+# plot dentsity 
+data_frame_names <- c("data.1448AWT", "data.0104KO", "data.0104LOSS")
+plot_list <- list()
+for (i in data_frame_names){
+  df <- get(i) %>%
+    subset(Category != "Tombo_levelcom" & Category != "Nanodisco" & Category != "SMRT")
+  p <- ggplot(df, aes(x=Value, color=Category, fill=Category)) +
+      geom_density(alpha=0.6) +
+      scale_color_manual(values = c("#9BBFCF","#98B85D","#C6AEBA","#DFD6A6","#B7B2D0","#5AA4AE","#BEE3D4"))+
+      theme_ipsum() +
+      ylab("Density") +
+      xlab("Assigned Fraction Probability") +
+      ggtitle(paste0(i," fraction distribution")) 
+    plot_list[[length(plot_list) + 1]] <- p
+    
+  df <- get(i) %>%
+    subset(Category == "Tombo_levelcom" | Category == "Nanodisco")
+  df$Value <- 10 ^ (-df$Value)
+  p <- ggplot(df, aes(x=Value, color=Category, fill=Category)) +
+      geom_density(alpha=0.6) +
+      scale_color_manual(values = c("#9BBFCF","#98B85D","#C6AEBA","#DFD6A6","#B7B2D0","#5AA4AE","#BEE3D4"))+
+      theme_ipsum() +
+      ylab("Density") +
+      xlab("Assigned Fraction Probability") +
+      ggtitle(paste0(i," p-value distribution"))
+    plot_list[[length(plot_list) + 1]] <- p
+}
+
+g <- arrangeGrob(grobs = plot_list, ncol=2) #generates g
+ggsave("r9distribution_density test.pdf",
+       path = "/Users/lubeifang/Desktop/Benchmark/Figure/distribution/",g,family="Arial",
+       width = 15, height = 15)
+rm(g, plot_list)
+
+
+```
+

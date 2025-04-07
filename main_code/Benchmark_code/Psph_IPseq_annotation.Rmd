@@ -1,0 +1,397 @@
+# 6mA-IP 
+##1.bed
+```{R}
+get.chromosome.name4 <- function(df){
+  df$Chromosome <- gsub("refseq\\|NC_005773\\.3\\|chromosome","chromosome",df$Chromosome)
+  df$Chromosome <- gsub("refseq\\|NC_007275\\.1\\|small","small",df$Chromosome)
+  df$Chromosome <- gsub("refseq\\|NC_007274\\.1\\|large","large",df$Chromosome)
+  return(df)
+}
+get.chromosome.name5 <- function(df){
+  df$Chromosome <- gsub("small.plasmid","small",df$Chromosome)
+  df$Chromosome <- gsub("large.plasmid","large",df$Chromosome)
+  return(df)
+}
+
+#6mA-IP-seq
+IP_bed <- read.csv("/Users/lubeifang/Desktop/Benchmark/DATA/6mA_IP_Psph/WT_IP_q3.bed",sep="\t",header = F)
+colnames(IP_bed) <- c("chr","start","end","peak_name","score","strand","enrichment","-log10pvalue","-log10qvalue","width")
+IP_bed$width <- IP_bed$end - IP_bed$start +1
+
+
+IPmu_bed <- read.csv("/Users/lubeifang/Desktop/Benchmark/DATA/6mA_IP_Psph/mu1101.bed",sep="\t",header = F)
+colnames(IPmu_bed) <- c("chr","start","end","peak_name","score","strand","enrichment","-log10pvalue","-log10qvalue","width")
+IPmu_bed <- IPmu_bed[IPmu_bed$`-log10qvalue` >= 3,]
+IPmu_bed$width <- IPmu_bed$end - IPmu_bed$start +1
+
+library(gghalves)
+library(reshape2) 
+library(ggrepel)
+
+summary(IP_bed$width)
+p1 <- ggplot(IP_bed, aes(x=0, y=width)) + 
+  geom_point(position = position_jitter(width =0.01),size = 0.3, alpha = 0.3, color="lightgrey")+
+  geom_half_violin(side='R', trim = F, fill = "#c7e9b4",color = NA) +
+  geom_boxplot(width = 0.05,outliers = F) +
+  theme_light() +
+  coord_flip() +
+  ylab("peak width") +
+  xlab("") +
+  ggtitle("Psph WT 6mA-IP-seq")+
+  xlim(-0.05,0.4) +
+  theme(panel.border = element_rect(color = "black", fill = NA),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
+# ggsave("/Users/lubeifang/Desktop/Benchmark/Figure/IP/WT_peakwidth.pdf",width = 3.3,height = 3)
+
+summary(IPmu_bed$width)
+p2 <- ggplot(IPmu_bed, aes(x=0, y=width)) + 
+  geom_point(position = position_jitter(width =0.01),size = 0.3, alpha = 0.3, color="lightgrey")+
+  geom_half_violin(side='R', trim = F, fill = "#c7e9b4",color = NA) +
+  geom_boxplot(width = 0.05,outliers = F) +
+  theme_light() +
+  coord_flip() +
+  ylab("peak width") +
+  xlab("") +
+  ggtitle("Psph hsdMSR 6mA-IP-seq") +
+  xlim(-0.05,0.4) +
+  ylim(-1,1000) +
+  theme(panel.border = element_rect(color = "black", fill = NA),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
+p <- p1+p2
+ggsave("/Users/lubeifang/Desktop/Benchmark/Figure/IP/peakwidth.pdf",p,width = 7,height = 3.8)
+
+```
+
+
+
+
+## 2.inter with SMRT/DORADO
+```{R}
+IP <- toGRanges(IP_bed, format = "narrowPeak", header= F)
+IPmu <- toGRanges(IPmu_bed, format = "narrowPeak", header= F)
+
+#SMRT
+SMRT_temp <- data.frame(Chromosome = best.pred.df[best.pred.df$Tool=="SMRT" ,]$Chromosome,
+                        start = best.pred.df[best.pred.df$Tool=="SMRT" ,]$Position -1 ,
+                        end = best.pred.df[best.pred.df$Tool=="SMRT" ,]$Position ,
+                        strand = best.pred.df[best.pred.df$Tool=="SMRT" ,]$Strand)
+SMRT_temp <- get.chromosome.name5(SMRT_temp)
+# write.csv(SMRT_temp,"/Users/lubeifang/Desktop/Benchmark/DATA/6mA_IP_Psph/best_SMRT_WT.csv", quote = F, row.names = F)
+SMRT_temp <- toGRanges(SMRT_temp, format="BED", header=FALSE)
+
+#Dorado
+Dorado_temp <- data.frame(Chromosome = best.pred.df[best.pred.df$Tool=="Dorado" ,]$Chromosome,
+                        start = best.pred.df[best.pred.df$Tool=="Dorado" ,]$Position -1 ,
+                        end = best.pred.df[best.pred.df$Tool=="Dorado" ,]$Position ,
+                        strand = best.pred.df[best.pred.df$Tool=="Dorado" ,]$Strand)
+Dorado_temp <- get.chromosome.name5(Dorado_temp)
+# write.csv(Dorado_temp,"/Users/lubeifang/Desktop/Benchmark/DATA/6mA_IP_Psph/best_Dorado_WT.csv", quote = F, row.names = F)
+Dorado_temp <-  toGRanges(Dorado_temp, format="BED", header=FALSE)
+
+#Tombo_levelcom
+Tombo_levelcom_temp <- data.frame(Chromosome = best.pred.df[best.pred.df$Tool=="Tombo_levelcom" ,]$Chromosome,
+                        start = best.pred.df[best.pred.df$Tool=="Tombo_levelcom" ,]$Position -1 ,
+                        end = best.pred.df[best.pred.df$Tool=="Tombo_levelcom" ,]$Position ,
+                        strand = best.pred.df[best.pred.df$Tool=="Tombo_levelcom" ,]$Strand)
+Tombo_levelcom_temp <- get.chromosome.name5(Tombo_levelcom_temp)
+# write.csv(Tombo_levelcom_temp,"/Users/lubeifang/Desktop/Benchmark/DATA/6mA_IP_Psph/best_Tombo_levelcom_WT.csv", quote = F, row.names = F)
+Tombo_levelcom_temp <-  toGRanges(Tombo_levelcom_temp, format="BED", header=FALSE)
+
+#Ture moitfs
+motif_bed <- rbind(MotifT1_peak,MotifT2_peak)[,c(1,2,3,6)]
+colnames(motif_bed) <- c("Chromosome","start", "end", "Strand")
+motif_bed <-  get.chromosome.name4(motif_bed)
+# write.csv(motif_bed,"/Users/lubeifang/Desktop/SMRT.csv")
+ture_motif <- toGRanges(motif_bed, format="BED", header=FALSE)
+
+motif1_bed <- MotifT1_peak[,c(1,2,3,6)]
+colnames(motif1_bed) <- c("Chromosome","start", "end", "Strand")
+motif1_bed <-  get.chromosome.name4(motif1_bed)
+# write.csv(motif_bed,"/Users/lubeifang/Desktop/SMRT.csv")
+ture_motif1 <- toGRanges(motif1_bed, format="BED", header=FALSE)
+
+motif2_bed <- MotifT2_peak[,c(1,2,3,6)]
+colnames(motif2_bed) <- c("Chromosome","start", "end", "Strand")
+motif2_bed <-  get.chromosome.name4(motif2_bed)
+# write.csv(motif_bed,"/Users/lubeifang/Desktop/SMRT.csv")
+ture_motif2 <- toGRanges(motif2_bed, format="BED", header=FALSE)
+
+#nosites
+nosites_bed <- data.frame(Chromosome = no_sites$Chromosome,
+                          start = no_sites$Position -1 ,
+                          end = no_sites$Position,
+                          strand = no_sites$Strand)
+nosites_bed <- get.chromosome.name5(nosites_bed)
+# write.csv(nosites_bed,"/Users/lubeifang/Desktop/Benchmark/DATA/6mA_IP_Psph/nosites_bed.csv", quote = F, row.names = F)
+nosites_bed <- toGRanges(nosites_bed, format="BED", header=FALSE)
+
+```
+
+## 3.Venn display
+```{R}
+ol <- findOverlapsOfPeaks(IP,IPmu)
+
+pdf("/Users/lubeifang/Desktop/Benchmark/Figure/IP/WT&MU.pdf",width=4,height = 4)
+makeVennDiagram(ol,NameOfPeaks = c("WT_6mA-IP-seq", "MU_6mA-IP-seq"),
+                cex = 1.5,cat.cex = 1,fill = c("#B8A8CF","#E7BCC6"),
+                cat.col = c("#B8A8CF","#E7BCC6"),
+                col=c("#B8A8CF","#E7BCC6"),
+                output = T, imagetype="pdf" , height = 480 , width = 480 , resolution = 300)
+dev.off()
+
+
+ol <- findOverlapsOfPeaks(IP,nosites_bed)
+
+pdf("/Users/lubeifang/Desktop/Benchmark/Figure/IP/venn.pdf",width=4,height = 4)
+makeVennDiagram(ol,NameOfPeaks = c("6mA-IP-seq", "not_find_in_TGS"),
+                cex = 1.5,cat.cex = 1,fill = c("#B8A8CF","#E7BCC6"),
+                cat.col = c("#B8A8CF","#E7BCC6"),
+                col=c("#B8A8CF","#E7BCC6"),
+                output = T, imagetype="pdf" , height = 480 , width = 480 , resolution = 300)
+dev.off()
+
+missed <- data.frame(ol[["mergedPeaks"]])
+
+
+
+ol <- findOverlapsOfPeaks(IP,IPmu,ture_motif1,ture_motif2)
+pdf("/Users/lubeifang/Desktop/Benchmark/Figure/IP/WT&MU&T12.pdf",width=5,height = 4)
+makeVennDiagram(ol,NameOfPeaks = c("WT-6mA-IP-seq","MU-6mA-IP-seq", "Motif type 1", "Motif type 2"),
+                cex = 1.5,cat.cex = 1,fill = c("#B8A8CF","#E7BCC6","#FDCF9E","lightblue"),
+                cat.col = c("#B8A8CF","#E7BCC6","#FDCF9E","lightblue"),
+                col=c("#B8A8CF","#E7BCC6","#FDCF9E","lightblue"),
+                output = T, imagetype="pdf" , height = 480 , width = 480 , resolution = 300)
+dev.off()
+
+
+
+ol <- findOverlapsOfPeaks(IP,Dorado_temp,SMRT_temp,ture_motif)
+pdf("/Users/lubeifang/Desktop/Benchmark/Figure/IP/venn4.pdf",width=5,height = 4)
+makeVennDiagram(ol,NameOfPeaks = c("6mA-IP-seq", "Dorado", "SMRT","Ture Motifs"),
+                cex = 1.5,cat.cex = 1,fill = c("#B8A8CF","#c7e9b4","#FDCF9E","lightblue"),
+                cat.col = c("#B8A8CF","#c7e9b4","#FDCF9E","lightblue"),
+                col=c("#B8A8CF","#c7e9b4","#FDCF9E","lightblue"),
+                output = T, imagetype="pdf" , height = 480 , width = 480 , resolution = 300)
+dev.off()
+missed <- data.frame(ol[["peaklist"]][["IP///SMRT_temp///ture_motif"]])
+
+```
+
+
+
+## 4.peak
+```{R}
+source("https://github.com/PoisonAlien/trackplot/blob/master/R/trackplot.R?raw=true")
+ref <- "/Users/lubeifang/Desktop/Benchmark/DATA/6mA_IP_Psph/1448A.fasta"
+
+# Specify the path to the .bw file
+WT_1 <- "/Users/lubeifang/Desktop/Benchmark/DATA/6mA_IP_Psph/bw/WT-1.bw"
+WT_2 <- "/Users/lubeifang/Desktop/Benchmark/DATA/6mA_IP_Psph/bw/WT-2.bw"
+WT_input <- "/Users/lubeifang/Desktop/Benchmark/DATA/6mA_IP_Psph/bw/WTinput_intersect.bw"
+
+bigWigs = c(WT_1,WT_2,WT_input)
+
+bigWigs = read_coldata(bws = bigWigs, build = ref)
+track_cols = c("#cad96d","#bfd5e9","#b9b9b9")
+trueMotif_peaks = c("/Users/lubeifang/Desktop/Benchmark/DATA/6mA_IP_Psph/best_SMRT_WT.bed",
+                    "/Users/lubeifang/Desktop/Benchmark/DATA/6mA_IP_Psph/best_Dorado_WT.bed",
+                    "/Users/lubeifang/Desktop/Benchmark/DATA/6mA_IP_Psph/best_Tombo_levelcom_WT.bed",
+                    "/Users/lubeifang/Desktop/Benchmark/DATA/6mA_IP_Psph/WT_IP_q3.bed",
+                    "/Users/lubeifang/Desktop/Benchmark/DATA/6mA_IP_Psph/trueMotif.bed")
+
+# Region to plot
+# smc
+loci = "chromosome:2077038-2080782"
+# lolD
+loci = "chromosome:2161000-2162000"
+# pbpG
+loci = "chromosome:2965533-2968561"
+
+
+pdf("/Users/lubeifang/Desktop/test1.pdf", width = 10, height = 5)
+track_data = track_extract(colData = bigWigs, loci = loci, query_ucsc=F, binsize = 1)
+track_plot(summary_list = track_data,
+           col = track_cols, 
+           draw_gene_track = F,
+           show_ideogram = TRUE,
+           y_max = 300,
+           y_min = 0,
+           peaks = trueMotif_peaks)
+dev.off()
+
+ol[["mergedPeaks"]]
+```
+
+### smc
+```{R}
+library(gggenes)
+library(ggplot2)
+
+fig <- data.frame(molecule=rep("Genome",1),
+                  gene=c("smc"),
+                  start=c(2077043),
+                  end=c(2080531),
+                  strand=c("forward"))
+fig$orientation <- ifelse(fig$strand == "forward", TRUE, FALSE)
+
+ggplot(fig, aes(xmin = start, xmax = end, y = molecule, fill = gene, label = gene, forward = orientation)) +
+  geom_gene_arrow(arrowhead_height = unit(14, "mm"), arrowhead_width = unit(6, "mm"),
+                  arrow_body_height = unit(14, "mm")) +
+  facet_wrap(~ molecule, scales = "free", ncol = 1) +
+  scale_fill_manual(values = c("white","#8A8DBF","white")) +
+  theme_genes() +
+  geom_gene_label(grow = T) +
+  xlim(2077038,2080782)
+ggsave("/Users/lubeifang/Desktop/smc_gene.pdf")
+
+## chromosome 2077392 - Rank in original files
+Dorado[Dorado$Position == 2077392 & Dorado$Strand == "-",]$Rank
+Tombo_levelcom[Tombo_levelcom$Position==2077392 & Tombo_levelcom$Strand== "-", ]$Rank
+SMRT[SMRT$Position==2077392 & SMRT$Strand== "-", ]$Rank
+
+value <- data.frame(name = c("Dorado","Tombo_levelcom","ASMRT"),
+                    Rank = c(9162,38240,3261))
+p3 <-ggplot(value,aes(x=name,y=Rank,fill=name,label=Rank)) +
+  geom_bar(stat = "identity", width=0.5) +
+  theme_light() +
+  xlab("") +
+  ylab("Rank") +
+  ggtitle("chromosome 2077392 -") +
+  theme(legend.position = "none",
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+  geom_text(vjust=-0.5) +
+  scale_fill_manual(values = c("#B395BD","#98B85D","#a9a9a9")) +
+  ylim(0,4e4)
+ggsave( "/Users/lubeifang/Desktop/Benchmark/Figure/F4_outlier/Rank_barplot_smc.pdf", width = 3.3, height = 3)
+```
+
+### pbpG
+```{R}
+fig <- data.frame(molecule=rep("Genome",2),
+                  gene=c("gabD2","pbpG"),
+                  start=c(2965856, 2967358),
+                  end=c(2967286,2968293),
+                  strand=c("forward", "reverse"))
+fig$orientation <- ifelse(fig$strand == "forward", TRUE, FALSE)
+
+ggplot(fig, aes(xmin = start, xmax = end, y = molecule, fill = gene, label = gene, forward = orientation)) +
+  geom_gene_arrow(arrowhead_height = unit(14, "mm"), arrowhead_width = unit(6, "mm"),
+                  arrow_body_height = unit(14, "mm")) +
+  facet_wrap(~ molecule, scales = "free", ncol = 1) +
+  scale_fill_manual(values = c("white","white")) +
+  theme_genes() +
+  geom_gene_label(grow = T) +
+  xlim(2965533,2968561)
+ggsave("/Users/lubeifang/Desktop/pbpG_gene.pdf")
+
+## chromosome 2967127 - Rank in original files
+Dorado[Dorado$Position==2967127 & Dorado$Strand== "-",]$Rank
+Tombo_levelcom[Tombo_levelcom$Position==2967127 & Tombo_levelcom$Strand== "-", ]$Rank
+SMRT[SMRT$Position==2967127 & SMRT$Strand== "-", ]$Rank
+
+value <- data.frame(name = c("Dorado","Tombo_levelcom","ASMRT"),
+                    Rank = c(49871,6682225,3522))
+p1 <- ggplot(value,aes(x=name,y=Rank,fill=name,label=Rank)) +
+  geom_bar(stat = "identity", width=0.5) +
+  theme_light() +
+  xlab("") +
+  ylab("Rank") +
+  ggtitle("chromosome 2967127 -") +
+  theme(legend.position = "none",
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+  geom_text(vjust=-0.5) +
+  scale_fill_manual(values = c("#B395BD","#98B85D","#a9a9a9")) +
+  ylim(0,7e6)
+
+## chromosome 2967128 + Rank in original files
+Dorado[Dorado$Position==2967128 & Dorado$Strand== "+",]$Rank
+Tombo_levelcom[Tombo_levelcom$Position==2967128 & Tombo_levelcom$Strand== "+", ]$Rank
+SMRT[SMRT$Position==2967128 & SMRT$Strand== "+", ]$Rank
+
+value <- data.frame(name = c("Dorado","Tombo_levelcom","ASMRT"),
+                    Rank = c(31309,424716,4879))
+p2 <- ggplot(value,aes(x=name,y=Rank,fill=name,label=Rank)) +
+  geom_bar(stat = "identity", width=0.5) +
+  theme_light() +
+  xlab("") +
+  ylab("Rank") +
+  ggtitle("chromosome 2967128 +") +
+  theme(legend.position = "none",
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+  geom_text(vjust=-0.5) +
+  scale_fill_manual(values = c("#B395BD","#98B85D","#a9a9a9"))+
+  ylim(0,5e5)
+
+p <- p3 + p1 + p2
+ggsave( "/Users/lubeifang/Desktop/Benchmark/Figure/F4_outlier/Rank_barplot.pdf", p, width = 11, height = 3.6)
+```
+
+Figure4
+## 5.Sites didn’t detect by SMRT/Nanopore solely
+```{R}
+# 209: SMRT&IP detected but Dorado don’t
+ol[["peaklist"]][["IP///SMRT_temp"]]
+temp <- data.frame(ol[["peaklist"]][["IP///SMRT_temp///ture_motif"]])
+
+peak <- temp[temp$seqnames == "chromosome",]
+peak_gr <- GRanges(seqnames="chr1",
+                   ranges=IRanges(start=as.numeric(as.matrix(peak[,2])),
+                                  end= as.numeric(as.matrix(peak[,3])),
+                                  names=as.matrix(as.matrix(peak[,1]))))
+annotatedpeak <- annotatePeakInBatch(peak_gr, AnnotationData=annoData)
+temp_anno = as.data.frame(annotatedpeak)
+
+# 167: Dorado&IP detected but SMRT don’t
+temp <- data.frame(ol[["peaklist"]][["IP///Dorado_temp"]])
+
+peak <- temp[temp$seqnames == "chromosome",]
+peak_gr <- GRanges(seqnames="chr1",
+                   ranges=IRanges(start=as.numeric(as.matrix(peak[,2])),
+                                  end= as.numeric(as.matrix(peak[,3])),
+                                  names=as.matrix(as.matrix(peak[,1]))))
+annotatedpeak <- annotatePeakInBatch(peak_gr, AnnotationData=annoData)
+temp_anno = as.data.frame(annotatedpeak)
+
+
+```
+
+## 6.Current visulization
+```{r}
+current <- read.csv("/Users/lubeifang/Desktop/Benchmark/Figure/nanocem/new_sites/showcase_1486231/current_feature.csv")
+p1<-ggplot(current[current$Position >= 1486228 & current$Position <= 1486232,],
+       aes(x=as.factor(Position),y=Mean,fill=Group)) +
+  geom_boxplot(outliers = F, size = 0.2) +
+  theme_light() +
+  xlab("Position") +
+  ylab("Mean of current") +
+  ggtitle("chromosome 1486230 +") +
+  theme(legend.position = "none",
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+  scale_fill_manual(values = c("#E7BCC6","#a9a9a9"))
+
+current <- read.csv("/Users/lubeifang/Desktop/Benchmark/Figure/nanocem/new_sites/showcase_1486241/current_feature.csv")
+p2<-ggplot(current[current$Position >= 1486238 & current$Position <= 1486242,],
+       aes(x=as.factor(Position),y=Mean,fill=Group)) +
+  geom_boxplot(outliers = F, size = 0.2) +
+  theme_light() +
+  xlab("Position") +
+  ylab("Mean of current") +
+  ggtitle("chromosome 1486240 -") +
+  theme(legend.position = "none",
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+  scale_fill_manual(values = c("#E7BCC6","#a9a9a9"))
+
+p <- p1/p2
+ggsave( "/Users/lubeifang/Desktop/Benchmark/Figure/F4_outlier/hrpS_mean.pdf", p, width = 6, height = 3.5)
+```

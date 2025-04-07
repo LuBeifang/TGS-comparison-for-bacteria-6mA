@@ -1,0 +1,424 @@
+Single molecule
+per-read evaluation
+# WT
+```{R}
+# SMRT from PacBio
+# single molecule
+SMRT_m = fread("/Users/lubeifang/Desktop/Benchmark/DATA/1448AWT/1448AWT_SMRT_m6A.gff", header = F,skip = 0)
+SMRT_m <- SMRT_m[,c(1,5,7,12)]
+colnames(SMRT_m) <- c("Chromosome","Position","Strand","OriginalValue")
+SMRT_m$OriginalValue <- as.numeric(sub("frac=", "", SMRT_m$OriginalValue))
+SMRT_m <- arrange(SMRT_m, desc(OriginalValue)) %>%
+  mutate(Rank = row_number()) %>%
+  get.normalized() %>%
+  get.chromosome.name()
+# Dorado+Modkit
+Dorado_m = fread("/Users/lubeifang/Desktop/Benchmark/DATA/1448AWT/dorado.bed", header = F)
+Dorado_m <- Dorado_m[,c(1,3,6,11)]
+colnames(Dorado_m) <- c("Chromosome","Position","Strand","OriginalValue")
+Dorado_m$OriginalValue <- Dorado_m$OriginalValue/100
+Dorado_m <- arrange(Dorado_m, desc(OriginalValue)) %>%
+  mutate(Rank = row_number()) %>%
+  get.normalized() %>%
+  get.chromosome.name()
+
+
+get.trim.df.Am <- function(preds_df, gt_df) {
+  TP1 <- c()
+  FN1 <- c() 
+  FP1 <- c()
+  TN1 <- c()
+  TPR1 <- c()
+  TNR1 <- c()
+  FPR1 <- c()
+  precision1 <- c()
+  recall1 <- c()
+  F1score1 <- c()
+  rank1 <- c()
+  originalvalue1 <- c()
+  value1 <- c()
+  
+
+  cutoffs <- c(seq(0, 0.5, length.out = 50),
+               seq(0.5, 0.8, length.out = 50),
+               seq(0.8, 1, length.out = 100))
+  
+  for (cutoff in cutoffs) {
+    print(cutoff)
+    preds <- subset(preds_df, OriginalValue >= cutoff) # if it is rank, make sure <=; if it is fraction, make sure >=
+    rank1 <- c(rank1,nrow(preds))
+    value1 <- c(value1,min(preds$Value))
+    originalvalue1 <- c(originalvalue1,min(preds$OriginalValue))
+    intersection <- inner_join(preds, gt_df, by = c("Position", "Chromosome", "Strand"))
+    TP <- nrow(intersection)
+    TP1 <- c(TP1,TP)
+    union <- rbind(preds,gt_df)
+    union <- union[!duplicated(union[, c("Position", "Chromosome", "Strand")]), ]
+    diff <- anti_join(Asites, union, by = c("Position", "Chromosome", "Strand"))
+    TN <- nrow(diff)
+    TN1 <- c(TN1,TN)
+    FP = nrow(preds)-TP
+    FP1 <- c(FP1,FP)
+    FN = nrow(gt_df)-TP
+    FN1 <- c(FN1,FN)
+    precision = TP/nrow(preds)
+    precision1 <- c(precision1, precision)
+    recall = TP/nrow(gt_df)
+    recall1 <- c(recall1, recall)
+    F1score = 2*precision*recall/(precision+recall)
+    F1score1 <- c(F1score1,F1score)
+    TPR1 <- c(TPR1, TP/(TP+FN))
+    TNR1 <- c(TNR1, TN/(TN+FP))
+    FPR1 <- c(FPR1, FP/(FP+TN))
+  }
+  plot1 <- data.frame(Cutoff = cutoffs, Rank = rank1, Value = value1, OriginalValue = originalvalue1, TP = TP1, FN = FN1, FP = FP1, TN = TN1, Precision = precision1, Recall = recall1, F1score = F1score1, TPR = TPR1, TNR = TNR1, FPR = FPR1) 
+  return(plot1)
+} 
+
+Motifs$OriginalValue <- 1
+Motifs$Rank <- 1
+Motifs$Value <- 1
+
+dataset.name <- c("SMRT")
+trimed.df_m <- data.frame()
+for (name in dataset.name){
+  print(name)
+  df <- get(paste0(name,"_m"))
+    trimed_temp <-  get.trim.df.Am(df, Motifs)
+    trimed.df_m <- rbind(trimed.df_m, data.frame(Tool = name, as.data.frame(trimed_temp)))
+  rm(trimed_temp)
+  trimed.df_m[is.na(trimed.df_m)] <- 0
+}
+
+write.csv(trimed.df_m,"/Users/lubeifang/Desktop/Benchmark/intermediateFILE/1448AWT_perREAD1113.csv",row.names = F)
+```
+
+
+
+### plot
+```{R}
+trimed.df_m <- read.csv("/Users/lubeifang/Desktop/Benchmark/intermediateFILE/1448AWT_perREAD1113.csv")
+
+p5 <- ggplot(trimed.df_m, aes(x=OriginalValue, y=F1score, group=Tool, color=Tool))+
+  geom_line(size=0.4) +
+  theme_light() +
+  xlab("Modification Fracion") +
+  ylab("F1 score") +
+  theme(
+    panel.border = element_rect(color = "black", fill = NA),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_blank(),
+    panel.background = element_rect(fill='transparent'),
+    legend.position="none"
+  ) +
+  scale_color_manual(values = c("#98B85D","#B395BD"))
+p <- (p1 | p4 | p5) + plot_layout(widths = c(1, 1.5, 1))
+p
+ggsave("/Users/lubeifang/Desktop/Benchmark/Figure/F3_trim_WT&MU/def.pdf", p, width = 9.6, height = 3.3)
+
+p1 <- ggplot(trimed.df_m, aes(x=Recall, y=Precision, group=Tool, color=Tool))+
+  geom_line(size=0.4) +
+  theme_light() +
+  theme(
+    panel.border = element_rect(color = "black", fill = NA),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_blank(),
+    legend.position=c(0.5,0.8),
+    legend.title = element_blank(),
+    legend.text = element_text(size = 8),
+    legend.key.height = unit(0.5, "mm"),
+    legend.background = element_rect(fill = 'transparent', size = 0.3),
+    panel.background = element_rect(fill='transparent')
+  ) +
+  scale_color_manual(values = c("#98B85D","#B395BD"))
+
+a1 <- ggplot(trimed.df_m, aes(x=log10(Rank), y=Precision, group=Tool, color=Tool))+
+  geom_line(size=0.4) +
+  theme_classic() +
+  xlab("log10(Rank)") +
+  ylab("Precision") +
+  theme(
+    axis.line = element_line(linewidth = 0.3),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(fill='transparent'),
+    legend.position="none"
+  ) +
+  #xlim(0,10000)+
+  scale_color_manual(values = c("#98B85D","#B395BD"))
+
+a2 <- ggplot(trimed.df_m, aes(x=log10(Rank), y=Recall, group=Tool, color=Tool))+
+  geom_line(size=0.4) +
+  theme_classic() +
+  xlab("log10(Rank)") +
+  ylab("Recall") +
+  theme(
+    axis.line = element_line(linewidth = 0.3),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(fill='transparent'),
+    legend.position="none"
+  ) +
+  #xlim(0,10000)+
+  scale_color_manual(values = c("#98B85D","#B395BD"))
+
+p2 <- ggplot(trimed.df_m, aes(x=FPR, y=TPR, group=Tool, color=Tool))+
+  geom_line(size=0.4) +
+  theme_light() +
+    theme(
+    panel.border = element_rect(color = "black", fill = NA),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_blank(),
+    legend.position=c(0.55,0.18),
+    legend.title = element_blank(),
+    legend.text = element_text(size = 8),
+    legend.key.height = unit(0.5, "mm"),
+    legend.background = element_rect(fill = 'transparent', size = 0.3),
+    panel.background = element_rect(fill='transparent')
+  )+
+  scale_color_manual(values = c("#98B85D","#B395BD"))
+
+b1 <- ggplot(trimed.df_m, aes(x=log10(Rank), y=TPR, group=Tool, color=Tool))+
+  geom_line(size=0.4) +
+  theme_classic() +
+  xlab("log10(Rank)") +
+  ylab("TPR") +
+  theme(
+    axis.line = element_line(linewidth = 0.3),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(fill='transparent'),
+    legend.position="none"
+  ) +
+ #xlim(0,10000)+
+  scale_color_manual(values = c("#98B85D","#B395BD"))
+b2 <- ggplot(trimed.df_m, aes(x=log10(Rank), y=FPR, group=Tool, color=Tool))+
+  geom_line(size=0.4) +
+  theme_classic() +
+  xlab("log10(Rank)") +
+  ylab("FPR") +
+  theme(
+    axis.line = element_line(linewidth = 0.3),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(fill='transparent'),
+    legend.position="none"
+  ) +
+  #xlim(0,10000)+
+  scale_color_manual(values = c("#98B85D","#B395BD"))
+
+p <- (p1 | (a1/a2) | p2 | (b1/b2)) + plot_layout(widths = c(2, 1, 2,1))
+ggsave("/Users/lubeifang/Desktop/Benchmark/Figure/F3_trim_WT&MU/per_read_SI.pdf", p, width = 10, height = 3)
+
+```
+
+### AUC
+```{r}
+# Calculate auc
+get.auc <- function(tool,a,b) {
+  a.vector <- trimed.df[trimed.df$Tool == tool,][[a]]
+  a.vector <- c(0, a.vector, 1)
+  b.vector <- trimed.df[trimed.df$Tool == tool,][[b]]
+  b.vector <- c(0, b.vector, 1)
+  area <- integrate(function(x) approx(a.vector, 
+                                       b.vector, xout = x)$y, 
+                    0, 1,subdivisions = 1000)
+  return(area)
+}
+
+
+
+dataset.name <- c( "Dorado","SMRT")
+AUC <- data.frame()
+for (k in c("trimed.df_m")){
+  trimed.df<-get(k)
+  for (i in dataset.name){
+    area_PR <- get.auc(i, "Recall", "Precision")
+    area_ROC <- get.auc(i, "FPR", "TPR")
+    AUC <- rbind(AUC, data.frame(set=k,name = i, PRC = round(area_PR[["value"]],3), ROC = round(area_ROC[["value"]],3)))
+  }
+}
+
+AUC
+
+```
+
+
+# MU
+```{R}
+# SMRT from PacBio
+SMRT_m = fread("/Users/lubeifang/Desktop/Benchmark/DATA/0104KO/1448AMU_SMRT_m6A.gff", sep = "\t", header = F,skip = 0)
+SMRT_m <- SMRT_m[,c(1,5,7,12)]
+colnames(SMRT_m) <- c("Chromosome","Position","Strand","OriginalValue")
+SMRT_m$OriginalValue <- as.numeric(sub("frac=", "", SMRT_m$OriginalValue))
+SMRT_m <- arrange(SMRT_m, desc(OriginalValue)) %>%
+  mutate(Rank = row_number()) %>%
+  get.normalized() %>%
+  get.chromosome.name()
+# Dorado+Modkit
+Dorado_m = fread("/Users/lubeifang/Desktop/Benchmark/DATA/0104KO/dorado.bed", header = F)
+Dorado_m <- Dorado_m[,c(1,3,6,11)]
+colnames(Dorado_m) <- c("Chromosome","Position","Strand","OriginalValue")
+Dorado_m$OriginalValue <- Dorado_m$OriginalValue/100
+Dorado_m <- arrange(Dorado_m, desc(OriginalValue)) %>%
+  mutate(Rank = row_number()) %>%
+  get.normalized() %>%
+  get.chromosome.name()
+
+MotifT2$OriginalValue <- 1
+MotifT2$Rank <- 1
+MotifT2$Value <- 1
+
+dataset.name <- c("Dorado", "SMRT")
+trimed.df <- data.frame()
+for (name in dataset.name){
+  print(name)
+  df <- get(paste0(name,"_m"))
+    trimed_temp <-  get.trim.df.Am(df, MotifT2)
+    trimed.df <- rbind(trimed.df, data.frame(Tool = name, as.data.frame(trimed_temp)))
+  rm(trimed_temp)
+  trimed.df[is.na(trimed.df)] <- 0
+}
+
+write.csv(trimed.df,"/Users/lubeifang/Desktop/Benchmark/intermediateFILE/1448AMU_perREAD1113.csv",row.names = F)
+```
+
+```{R}
+trimed.df_m <- read.csv("/Users/lubeifang/Desktop/Benchmark/intermediateFILE/1448AMU_perREAD1113.csv")
+
+p5 <- ggplot(trimed.df_m, aes(x=OriginalValue, y=F1score, group=Tool, color=Tool))+
+  geom_line(size=0.4) +
+  theme_light() +
+  xlab("Modification Fracion") +
+  ylab("F1 score") +
+  theme(
+    panel.border = element_rect(color = "black", fill = NA),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_blank(),
+    panel.background = element_rect(fill='transparent'),
+    legend.position="none"
+  ) +
+  scale_color_manual(values = c("#98B85D","#B395BD"))
+p <- (p1 | p4 | p5) + plot_layout(widths = c(1, 1.5, 1))
+p
+ggsave("/Users/lubeifang/Desktop/Benchmark/Figure/F3_trim_WT&MU/I.pdf", p, width = 9.6, height = 3.3)
+
+ggsave("/Users/lubeifang/Desktop/Benchmark/Figure/F3_trim_WT&MU/1448AMU_bar.pdf", p, width = 9.6, height = 2.7)
+
+p1 <- ggplot(trimed.df_m, aes(x=Recall, y=Precision, group=Tool, color=Tool))+
+  geom_line(size=0.4) +
+  theme_light() +
+  theme(
+    panel.border = element_rect(color = "black", fill = NA),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_blank(),
+    legend.position=c(0.5,0.8),
+    legend.title = element_blank(),
+    legend.text = element_text(size = 8),
+    legend.key.height = unit(0.5, "mm"),
+    legend.background = element_rect(fill = 'transparent', size = 0.3),
+    panel.background = element_rect(fill='transparent')
+  ) +
+  scale_color_manual(values = c("#98B85D","#B395BD"))
+
+a1 <- ggplot(trimed.df_m, aes(x=log10(Rank), y=Precision, group=Tool, color=Tool))+
+  geom_line(size=0.4) +
+  theme_classic() +
+  xlab("log10(Rank)") +
+  ylab("Precision") +
+  theme(
+    axis.line = element_line(linewidth = 0.3),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(fill='transparent'),
+    legend.position="none"
+  ) +
+  #xlim(0,10000)+
+  scale_color_manual(values = c("#98B85D","#B395BD"))
+
+a2 <- ggplot(trimed.df_m, aes(x=log10(Rank), y=Recall, group=Tool, color=Tool))+
+  geom_line(size=0.4) +
+  theme_classic() +
+  xlab("log10(Rank)") +
+  ylab("Recall") +
+  theme(
+    axis.line = element_line(linewidth = 0.3),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(fill='transparent'),
+    legend.position="none"
+  ) +
+  #xlim(0,10000)+
+  scale_color_manual(values = c("#98B85D","#B395BD"))
+
+p2 <- ggplot(trimed.df_m, aes(x=FPR, y=TPR, group=Tool, color=Tool))+
+  geom_line(size=0.4) +
+  theme_light() +
+    theme(
+    panel.border = element_rect(color = "black", fill = NA),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_blank(),
+    legend.position=c(0.55,0.18),
+    legend.title = element_blank(),
+    legend.text = element_text(size = 8),
+    legend.key.height = unit(0.5, "mm"),
+    legend.background = element_rect(fill = 'transparent', size = 0.3),
+    panel.background = element_rect(fill='transparent')
+  )+
+  scale_color_manual(values = c("#98B85D","#B395BD"))
+
+b1 <- ggplot(trimed.df_m, aes(x=log10(Rank), y=TPR, group=Tool, color=Tool))+
+  geom_line(size=0.4) +
+  theme_classic() +
+  xlab("log10(Rank)") +
+  ylab("TPR") +
+  theme(
+    axis.line = element_line(linewidth = 0.3),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(fill='transparent'),
+    legend.position="none"
+  ) +
+ #xlim(0,10000)+
+  scale_color_manual(values = c("#98B85D","#B395BD"))
+b2 <- ggplot(trimed.df_m, aes(x=log10(Rank), y=FPR, group=Tool, color=Tool))+
+  geom_line(size=0.4) +
+  theme_classic() +
+  xlab("log10(Rank)") +
+  ylab("FPR") +
+  theme(
+    axis.line = element_line(linewidth = 0.3),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(fill='transparent'),
+    legend.position="none"
+  ) +
+  #xlim(0,10000)+
+  scale_color_manual(values = c("#98B85D","#B395BD"))
+
+p <- (p1 | (a1/a2) | p2 | (b1/b2)) + plot_layout(widths = c(2, 1, 2,1))
+ggsave("/Users/lubeifang/Desktop/Benchmark/Figure/F3_trim_WT&MU/per_read_SI_MU.pdf", p, width = 10, height = 3)
+
+```
+
+### AUC
+```{r}
+dataset.name <- c( "Dorado","SMRT")
+AUC <- data.frame()
+for (k in c("trimed.df_m")){
+  trimed.df<-get(k)
+  for (i in dataset.name){
+    area_PR <- get.auc(i, "Recall", "Precision")
+    area_ROC <- get.auc(i, "FPR", "TPR")
+    AUC <- rbind(AUC, data.frame(set=k,name = i, PRC = round(area_PR[["value"]],3), ROC = round(area_ROC[["value"]],3)))
+  }
+}
+
+AUC
+```
