@@ -83,15 +83,13 @@ Additionally, for Tombo, we developed [read_tombo.py](main_code/Nanopore_tools_c
 We show the main code of our work, structured in R markdown files.
 In each Rmd, we recommend the reading following the **Outline**.
 For example in [Psph_WT_evaluation.Rmd](main_code/Benchmark_code/Psph_WT_evaluation.Rmd). 
-1. Data loading and normalization.
-2. Motif discovery.
-3. Sites comparsion which focused on the single-base/5-mer resolution
-5. **Sites comparison** is one of the core sections of our study, including "5-mer shift", "compare tools with A sites", and "compare tools with ATCG sites".
-   Codes are provided and detailed description can be found in Methods section.
-   Codes for plotting F1 score change curve, PRC, and ROC curve are provided.
-   The expecting running time for each tool's comparison should be within 60 mins.
-7. Outliers analysis.
-8. Detailed comparison of Nanopore and SMRT results.
+1. Data loading and **normalization**.
+2. **Motif** discovery.
+3. Sites comparsion which focused on the **single-base/5-mer** resolution
+4. **Single molecule** level comparison in [Psph_single_molecule_evalutation.Rmd](main_code/Benchmark_code/Psph_single_molecule_evalutation.Rmd). 
+5. **Outliers** analysis.
+6. Detailed comparison of Nanopore and SMRT results.
+7. Campared with [6mA-IP-seq](main_code/Benchmark_code/Psph_IPseq_annotation.Rmd).
 
 The expecting running time for each tool's comparison should be within 60 mins.
 
@@ -101,9 +99,11 @@ We present the codes for the figures plot in each Rmd file.
 
 All figures'code can be found in this git version. For example:
 
-1. Codes are provided and detailed description can be found in Methods section.
+1. Codes for plotting F1 score change curve, PRC, and ROC curve are provided.
 
-2. Codes for plotting F1 score change curve, PRC, and ROC curve are provided.
+2. Codes for plotting peaks from 6mA-IP-seq are provided.
+
+3. Codes for plotting methylome are provided.
 
 
 #### Showcase of the current
