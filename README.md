@@ -113,5 +113,3 @@ we used [nanoCEM](https://github.com/lrslab/nanoCEM) to showcase the analysis fo
 
 ## Cite us
 Lu, B., Guo, Z., Liu, X. et al. Comprehensive comparison of the third-generation sequencing tools for bacterial 6mA profiling. Nat Commun 16, 3982 (2025). https://doi.org/10.1038/s41467-025-59187-2
-
-DOI: https://doi.org/10.1038/s41467-025-59187-2
